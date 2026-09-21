@@ -36,12 +36,20 @@ jobs:
           cp -r docs/* _site/docs/
           node tools/news-scan.mjs --out _site/docs/news-report.json
           touch _site/.nojekyll
+          node -e 'const r=require("./_site/docs/news-report.json"); console.log(JSON.stringify({feedsOk:r.feedsOk,feedsFailed:r.feedsFailed,headlines:r.flagged.length})); if(r.feedsFailed) console.log("::warning::News scan has unavailable feeds; see the published snapshot.")'
       - name: Check Pages deployment mode
         id: pages
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           mode=$(gh api "repos/$GITHUB_REPOSITORY/pages" --jq .build_type)
+          if [ "$mode" != workflow ]; then
+            # The workflow's narrowly scoped pages:write token may have access
+            # even when the interactive GitHub integration cannot edit Pages.
+            if gh api --method PUT "repos/$GITHUB_REPOSITORY/pages" -f build_type=workflow; then
+              mode=workflow
+            fi
+          fi
           echo "build_type=$mode" >> "$GITHUB_OUTPUT"
           if [ "$mode" != workflow ]; then
             echo '::warning::Pages still uses branch publishing. A repository administrator must enable GitHub Actions as the Pages source. The report artifact is built but cannot be deployed automatically.'
