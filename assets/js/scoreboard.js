@@ -257,6 +257,19 @@
       ...byState.Other.filter((g) => !activeDelays.includes(g)),
     ];
 
+    const counts = {
+      all: games.length, live: byState.Live.length, scheduled: byState.Preview.length,
+      final: byState.Final.length, delays: disrupted.length, forecast: wetForecast.length,
+      alerts: alerted.length, flags: flagged.length,
+    };
+    // Conditional tabs only exist while their count is > 0. If the user's
+    // current filter lost its tab (count dropped to 0), reset it BEFORE the
+    // card list is rendered — otherwise the list would be filtered by a tab
+    // that no longer exists until the next render cycle.
+    const tabKeys = ['all', 'live', 'scheduled', 'final'];
+    ['delays', 'forecast', 'alerts', 'flags'].forEach((k) => { if (counts[k] > 0) tabKeys.push(k); });
+    if (filter !== 'all' && !tabKeys.includes(filter)) filter = 'all';
+
     const filtered = filter === 'all' ? ordered : ordered.filter((g) => {
       if (filter === 'live') return g.status.abstractGameState === 'Live';
       if (filter === 'scheduled') return g.status.abstractGameState === 'Preview';
@@ -268,11 +281,7 @@
       return true;
     });
 
-    renderTabs({
-      all: games.length, live: byState.Live.length, scheduled: byState.Preview.length,
-      final: byState.Final.length, delays: disrupted.length, forecast: wetForecast.length,
-      alerts: alerted.length, flags: flagged.length,
-    });
+    renderTabs(tabKeys, counts);
 
     if (!filtered.length) {
       listEl.appendChild(UI.el('div', 'empty', games.length ? 'No games in this category.' : 'No games scheduled for this date.'));
@@ -322,24 +331,25 @@
     banner.appendChild(bar);
   }
 
-  function renderTabs(counts) {
-    const tabs = [
-      ['all', `All (${counts.all})`],
-      ['live', `Live (${counts.live})`],
-      ['scheduled', `Scheduled (${counts.scheduled})`],
-      ['final', `Final (${counts.final})`],
-    ];
-    if (counts.delays > 0) tabs.push(['delays', `⏸ Delays (${counts.delays})`]);
-    if (counts.forecast > 0) tabs.push(['forecast', `🌧 Rain risk (${counts.forecast})`]);
-    if (counts.alerts > 0) tabs.push(['alerts', `⚠ Alerts (${counts.alerts})`]);
-    if (counts.flags > 0) tabs.push(['flags', `🚩 Flagged (${counts.flags})`]);
+  const TAB_LABELS = {
+    all: (c) => `All (${c.all})`,
+    live: (c) => `Live (${c.live})`,
+    scheduled: (c) => `Scheduled (${c.scheduled})`,
+    final: (c) => `Final (${c.final})`,
+    delays: (c) => `⏸ Delays (${c.delays})`,
+    forecast: (c) => `🌧 Rain risk (${c.forecast})`,
+    alerts: (c) => `⚠ Alerts (${c.alerts})`,
+    flags: (c) => `🚩 Flagged (${c.flags})`,
+  };
+
+  /** Render the tab bar from pre-computed [key, …] pairs (tabKeys ⊆ counts). */
+  function renderTabs(tabKeys, counts) {
     const wrap = UI.clear($('#tabs'));
-    tabs.forEach(([key, label]) => {
-      wrap.appendChild(UI.el('button', `tab ${filter === key ? 'tab-on' : ''}`, label, {
+    tabKeys.forEach((key) => {
+      wrap.appendChild(UI.el('button', `tab ${filter === key ? 'tab-on' : ''}`, TAB_LABELS[key](counts), {
         onclick: `Scoreboard.setFilter('${key}')`,
       }));
     });
-    if (filter !== 'all' && !tabs.some(([k]) => k === filter)) { filter = 'all'; }
   }
 
   /* ------------------------------------------------------------ game cards */

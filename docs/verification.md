@@ -94,10 +94,10 @@ environment and is therefore surfaced as a flag or a footnote in the UI.
 
 | Item | Status |
 |---|---|
-| Stylesheet, `ui.js`, `404.html`, `LICENSE`, `.gitignore`, `docs/workflows/pages.yml` copied from the reference (`6d61092`) | ✅ verbatim (+ appended weather/delay CSS block and four new UI helpers) |
+| Stylesheet, `ui.js`, `404.html`, `LICENSE`, `.gitignore`, `docs/workflows/pages.yml` copied from the reference (`6d61092`) | ✅ verbatim (+ appended weather/delay CSS block and four new UI helpers; the 404 title was corrected in Pass 4) |
 | Scoreboard → `index.html`, Game → `game.html`, all-games feed → `delays.html` (structure, classes and behaviour of `reviews.html`: banner, live strip, stats, tabs, chat-style rows, sound toggle, countdown, date picker) | ✅ |
 | Polling etiquette (hidden-tab pause, backoff on Final, 429 self-throttle) | ✅ retained in `api.js` and the three controllers |
-| Offline fixture-driven tests in `tools/`, optional workflows in `docs/workflows/` | ✅ 52 assertions across three suites |
+| Offline fixture-driven tests in `tools/`, workflows in `docs/workflows/` (smoke enabled in `.github/workflows/` since Pass 4) | ✅ 56 assertions across three suites (26 + 24 + 6) |
 
 ## 7. Test evidence (Pass 1)
 
@@ -124,6 +124,10 @@ $ node tools/weather-test.mjs    # 23 passed
 $ node tools/render-test.mjs     #  6 passed
 ```
 
+(Finding 1–9 below were found and fixed in the first session; the Pass 4
+findings of the second session — live re-verification on 2026-09-21 plus six
+further bugs — are in [§9](#9-pass-4-second-session-live-re-verification-bugs-and-fixes).)
+
 | # | Finding | Fix |
 |---|---|---|
 | 1 | Pass 1 status fixture had 32 hand-picked rows and **guessed** `QR` = "Forfeit: Rain". The live registry says "Forfeit: Rule" — forfeits use a different letter table. | Fetched all 210 live rows into the fixture; added `FORFEIT_REASON_BY_CODE`; the registry test now asserts every row's kind, reason round-trip and "no spurious flags". |
@@ -138,6 +142,87 @@ $ node tools/render-test.mjs     #  6 passed
 
 ---
 
+## 9. Pass 4 — second session: live re-verification, bugs and fixes
+
+**Date:** 2026-09-21 (late morning US time, a few hours after the §1–§8 captures).
+Everything below was re-fetched live and compared against what the **deployed
+site** renders (the GitHub Pages site executes the real page code, so the
+rendered output was read directly from
+<https://buffedlizard55-lab.github.io/MLBRainDelay/> and diffed field-by-field
+against the raw official payloads).
+
+### 9.1 Live re-verification (2026-09-21 slate)
+
+| Check | Official source (live URL → value) | Site rendered | Result |
+|---|---|---|---|
+| Today's schedule | `schedule?sportId=1&date=2026-09-21&fields=…` (the exact 20-field sweep the code polls every 5 s — all 20 field names accepted, no 400) → 3 games, all `S`/Scheduled | `index.html`: "3 games · 0 in progress · 0 delayed now"; `delays.html`: 3 forecast rows | ✅ identical |
+| Hydrated schedule shape | `schedule?…&date=2026-09-21&hydrate=team,weather,venue(location,timezone,fieldInfo),gameInfo` → 824787 Camden Yards `39.283787,-76.621689`, `America/New_York`, roofType `Open`, `weather:{}` pre-game; 824221 Comerica `42.3391151,-83.048695` | site shows "6:35 PM local · 6:35 PM EDT at the park", "MLB game weather: not yet published (appears around first pitch)" | ✅ identical |
+| NWS point for Camden Yards | `api.weather.gov/points/39.283787,-76.621689` → `gridId "LWX"`, `109,91`, radar `KLWX`, `America/New_York` | game page: "NWS grid LWX 109,91 · radar KLWX"; verify link `points/39.2838,-76.6217` (4-decimal rounding, per NWS docs) | ✅ identical |
+| NWS hourly 9 PM EDT period | `gridpoints/LWX/109,91/forecast/hourly` period #19 `2026-09-21T21:00:00-04:00`: PoP **67**, `shortForecast "Rain Showers Likely"` | scoreboard + feed + game page: "⛈ High — 67% · Rain Showers Likely · 9:00 PM EDT" (HIGH = documented rule maxPoP ≥ 60%) | ✅ exact |
+| NWS hourly, full game window | periods 15–21 (17:00→22:00 EDT): 28 / 28 / 32 / 49 / 67 / 54 % | feed hourly table shows exactly those six rows with the same temps and winds | ✅ exact |
+| NWS active alerts, Camden Yards | `alerts/active?point=39.283787,-76.621689` → `features: []`, updated 07:33Z | "Active alerts at the ballpark (0)" / no alert chip on the card | ✅ identical |
+| ECCC endpoint, exact code URL | `api.weather.gc.ca/collections/citypageweather-realtime/items?f=json&lang=en&limit=10&bbox=-79.789,43.342,-78.989,43.942` (the ±0.4°/±0.3° box around the Rogers Centre coordinates, the exact string `weather.js` builds) → FeatureCollection with bilingual `{en,fr}` leaves, `currentConditions`, `forecastGroup`, `lastUpdated` — the documented shape | n/a today (no Jays game); nearest-feature logic picks the park's own city page at runtime | ✅ shape verified live (resolves the ⚠️ in §3 for the *server* side; browser CORS still needs a user check — see Limitations) |
+| Status registry | `gameStatus` re-fetched live, all 210 rows | fixture `game-status-registry.json` = 210 rows; per-family counts identical (P 18, I 20, M 23, N 23, O 19, F 19, D 15, C 15, T 17, U 18, Q 10, R 10, S 1, W 1, X 1 = 210) | ✅ same membership — see flag below |
+| Delay facts, 824381 (ATH@CLE, Progressive Field) | `schedule?sportId=1&gamePk=824381&hydrate=gameInfo,weather` → `delayDurationMinutes: 125`, `firstPitch 2026-09-20T19:45:00Z` − `gameDate 17:40:00Z` = +125, MLB weather `"Cloudy" 68°F, "12 mph, In From CF"`, CLE 1–0 | fixture + cross-check logic reproduce the 125 min exactly | ✅ identical |
+| Box score, 824546 (DET@CWS, Rate Field) | `game/824546/boxscore?fields=info,label,value` → `T: "2:50 (3:50 delay)."`, `Weather: "65 degrees, Rain."`, `Wind: "10 mph, L To R."`, `Att: "21,354."`, `Venue: "Rate Field."` | `3:50 = 230 min = delayDurationMinutes` cross-check; feed shows "MLB delayDurationMinutes: 230 (3h 50m)" + "box score T: 2:50 (3:50 delay)" | ✅ identical |
+
+### 9.2 Irregularities found live this pass (flagged, not silently resolved)
+
+1. **Registry row order drifted within the N family.** Between the §1 capture
+   (04:00Z) and this re-fetch (≈07:50Z), `NW` "Umpire review: Def Shift
+   Violation" moved from position 3 to position 22 of the N family. Row
+   **membership and content are identical** (210 = 210, every row verified);
+   the classifier works per-row so there is no functional impact, and the
+   fixture test would catch any future *content* drift.
+2. **The registry endpoint ignores `fields=`.** `gameStatus?fields=statusCode`
+   still returns full rows (2026-09-21). No code impact (the fixture was
+   captured with the four documented fields and the extra fields are simply
+   not stored), noted so a future re-capture doesn't trust the projection.
+3. **`fields=` + `hydrate=` on `schedule` returns empty hydrated objects.**
+   Verified live this pass (e.g. `gameInfo:{}`). The client never combines the
+   two: `getSchedule` uses `hydrate=` only, `getStatusSweep` uses `fields=`
+   only — both patterns verified working in 9.1. Documented here so the
+   combination is not introduced later.
+4. **Live box scores carry more `info[]` labels than the captured fixture.**
+   The live 824546 box score also lists `WP`, `Balk`, `HBP`, `ABS Challenge`,
+   `Pitches-strikes`, `Groundouts-flyouts`, `Batters faced`, `Inherited
+   runners-scored`, `Umpires` and a trailing date line **without a value**
+   (`{"label":"September 20, 2026"}`). `parseBoxscoreInfo` reads only the six
+   known labels and treats a missing `value` as `''` (verified in code), so
+   the cross-checks are unaffected; the extra labels are deliberately ignored,
+   not hidden.
+
+### 9.3 Bugs found and fixed this pass
+
+```
+$ for f in assets/js/*.js; do node --check "$f"; done      # clean
+$ node tools/delays-test.mjs     # 26 passed
+$ node tools/weather-test.mjs    # 24 passed  (+1: stale-cache)
+$ node tools/render-test.mjs     #  6 passed  (assertions extended)
+```
+
+| # | Finding | Fix |
+|---|---|---|
+| 1 | `delays.html` had an empty `<div id="club-links">` — the manual-review club list was never populated (clubs.js was loaded but unused by the feed). | `Clubs.newsLinks(games)` added (one official MLB.com club-news link per team, de-duplicated); the feed fills the div on every load and clears it on date change. Render test asserts 12 links for the 12-club fixture slate, all `https://www.mlb.com/{slug}/news`. |
+| 2 | Scoreboard tab filter could desync: when the user's filter lost its tab (e.g. Flagged count dropped to 0 between polls), the reset to `all` ran **after** the card list was already rendered with the dead filter — the list showed the stale filtered subset with no tab highlighted until the next cycle. | Counts + tab list are computed first; the filter is reset *before* the card list is rendered. Render test drives the exact transition (flags 1 → 0) and asserts all cards visible, All tab active, no Flagged tab. |
+| 3 | Duplicate "NWS alerts (JSON)" links: the alerts URL was reachable from both `sourceUrls` and the human-review links, so feed rows and the game-page Sources panel listed it twice. | De-duplicated by URL in `wxLinks()` (delay feed), `alertBody()` (alert rows) and the game-page Sources panel. Render tests assert no URL appears twice in any row/panel. |
+| 4 | `ui.js` exported a `headshot()` helper that called `MLB.headshotUrl` — a function that does not exist in `api.js`. Unused by every page, but a guaranteed `TypeError` if ever called. | Dead helper and its export removed. |
+| 5 | `weather.js` cache: when a refresh failed while the cached value was already past its TTL, the *next* call served the stale value **without** the `stale` marker, so the "last successful fetch" footnote could silently disappear for as long as the failure lasted. | `cached()` now marks the value `stale: true` whenever it is served outside its TTL (the value-fresh / error-fresh matrix is unchanged otherwise). New unit test drives both the failing call and the follow-up cached-error call. |
+| 6 | `404.html` still carried the reference project's title ("404 — MLB Live PBP"). | Title now "404 — MLB Rain Delay". Also removed a dead `window.MLBReviews` branch in `statusChip` (that script is not part of this repo; the self-contained statusCode/codedGameState detector — verified against the live registry's M*/N*/IH rows — is the only path now). |
+
+### 9.4 CI
+
+`docs/workflows/smoke.yml` was enabled in `.github/workflows/smoke.yml`: the
+three offline suites (syntax check + 56 assertions) now run on every push,
+pull request and nightly (04:17 UTC). They are fully offline — captured,
+verified payloads in `tools/fixtures/` — so they never depend on upstream
+availability or rate limits. The Pages workflow (`docs/workflows/pages.yml`)
+remains optional: this repo is already published from `main` / `(root)` via
+GitHub Pages settings, and enabling the Actions-based deploy at the same time
+would double-deploy.
+
+---
+
 ## Limitations and remaining work
 
 1. **No social-media / news scanning.** Twitter/X, Facebook and Instagram have no
@@ -148,13 +233,20 @@ $ node tools/render-test.mjs     #  6 passed
    `@MLB_PR` accounts and MLB.com news RSS, writes a small JSON file into the repo, and
    the pages render it under a "Reported, not official" heading with the post URL as the
    source. Until then the pages link to those channels for manual review.
-2. **ECCC browser CORS unverified** (see §3). Check `delays.html` for a Rogers Centre
-   game; if the chip reads "Open-Meteo (model)" with `eccc-failed`, the fix is either a
-   proxy or ECCC's `alerts`/`weather` collections that do send CORS headers.
-3. **Live end-to-end run not performed from the build sandbox** — outbound TLS to
-   `statsapi.mlb.com` / `api.weather.gov` was blocked there, so every verification above
-   used the platform's page fetcher and the browser code was exercised only against
-   captured payloads. The first live page load in a browser is the remaining check.
+2. **ECCC browser CORS unverified** (see §3 and §9.1). The *server* side of the
+   exact code URL was verified live on 2026-09-21 (FeatureCollection with the
+   documented shape). The remaining check is browser CORS from a user's machine
+   on a day the Blue Jays play: if the chip reads "Open-Meteo (model)" with
+   `eccc-failed`, the fix is either a proxy or ECCC's `alerts`/`weather`
+   collections that do send CORS headers.
+3. **Live end-to-end run** — partially closed on 2026-09-21 (§9.1): the
+   deployed site's rendered output (the page's own JavaScript executed in a
+   real browser by the verification tooling) was diffed field-by-field against
+   the raw official payloads for the full 2026-09-21 slate (schedule, NWS
+   point/hourly/alerts at Camden Yards, ECCC, box score, status registry).
+   What remains: an interactive user-side check of polling behaviour (5 s
+   status sweep, weather refresh, chime) on a day with an active delay, since
+   today's slate had no in-progress game.
 4. **Venue coordinates** come from MLB's venue record; special-event venues (Mexico
    City 5340, Santo Domingo 3049, and others without `defaultCoordinates`) show
    `no-coordinates`. Sutter Health Park (Athletics, id 2529) does have coordinates.

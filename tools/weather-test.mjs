@@ -260,6 +260,30 @@ await test('second call for the same venue is served from cache (no new requests
   assert.equal(wx.ok, true);
   assert.equal(calls.length, before);
 });
+await test('stale value + recent refresh failure → value served WITH the stale flag on every call', async () => {
+  const point = fx('nws-points-rate-field.json').properties;
+  const key = `nws:hourly:${point.forecastHourly}`;
+  const hourlyUrl = point.forecastHourly;
+  const good = routes.get(hourlyUrl);
+  const entry = Weather._cache.get(key);
+  assert.ok(entry && entry.value, 'precondition: hourly forecast is cached');
+  entry.at = Date.now() - 16 * 60 * 1000; // push the value past its 15-min TTL
+  routes.set(hourlyUrl, { status: 503, json: {} });
+  try {
+    const first = await Weather.forVenue(rate); // the call whose refresh fails
+    assert.equal(first.ok, true, 'stale forecast still served');
+    assert.equal(first.forecast.stale, true);
+    assert.ok(first.issues.some((i) => i.code === 'stale'));
+    const second = await Weather.forVenue(rate); // cached-error path
+    assert.equal(second.ok, true);
+    assert.equal(second.forecast.stale, true, 'stale flag survives the cached-error path');
+    assert.ok(second.issues.some((i) => i.code === 'stale'));
+  } finally {
+    const e = Weather._cache.get(key);
+    if (e) { e.at = Date.now(); e.error = undefined; e.errorAt = 0; }
+    routes.set(hourlyUrl, good);
+  }
+});
 await test('forGame composes roof + window + risk for a real schedule game', async () => {
   const g = { ...byPk.get(824546), gameDate: '2026-09-21T00:10:00Z', gameInfo: {}, status: { abstractGameState: 'Preview' } };
   const wx = await Weather.forGame(g);
