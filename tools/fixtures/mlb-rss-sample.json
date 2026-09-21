@@ -1,0 +1,45 @@
+{
+  "_source": "https://www.mlb.com/feeds/news/rss.xml",
+  "_verified": "2026-09-21 — RSS 2.0 channel/item structure as observed live (channel title/link, item title/link/pubDate/author/description/guid). The item list below is a small representative sample for the offline parser tests; the final two items are SYNTHETIC test entries (one delay headline that must flag, one non-weather headline that must not), marked 'test:' in their titles so a reviewer can tell them from a capture.",
+  "rss": {
+    "channel": {
+      "title": "MLB News",
+      "link": "https://www.mlb.com"
+    },
+    "items": [
+      {
+        "title": "Holliday (wrist) unlikely to play again for O's in final week",
+        "link": "https://www.mlb.com/news/jackson-holliday-left-wrist-injury-update",
+        "pubDate": "Mon, 21 Sep 2026 20:49:36 GMT",
+        "author": "MLB.com",
+        "description": "Holliday out with a wrist injury for the Orioles.",
+        "guid": "1790023776"
+      },
+      {
+        "title": "Tigers' home ballpark renamed to Fifth Third Park",
+        "link": "https://www.mlb.com/news/tigers-ballpark-name-changed-to-fifth-third-park",
+        "pubDate": "Mon, 21 Sep 2026 19:37:00 GMT",
+        "author": "Jason Beck",
+        "description": "Detroit's ballpark has a new name.",
+        "guid": "1790019420"
+      },
+      {
+        "title": "test: O's rained out in Baltimore; makeup set for October",
+        "link": "https://www.mlb.com/news/synthetic-rainout-fixture",
+        "pubDate": "Mon, 21 Sep 2026 18:30:00 GMT",
+        "author": "MLB.com",
+        "description": "Synthetic fixture item: a postponement due to rain with a makeup date.",
+        "guid": "synthetic-rainout-1"
+      },
+      {
+        "title": "test: Regular-season finale notebook for the final week",
+        "link": "https://www.mlb.com/news/synthetic-regular-fixture",
+        "pubDate": "Mon, 21 Sep 2026 18:00:00 GMT",
+        "author": "MLB.com",
+        "description": "Synthetic fixture item: a routine notebook entry.",
+        "guid": "synthetic-regular-1"
+      }
+    ]
+  },
+  "xml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><rss version=\"2.0\"><channel><title>MLB News</title><link>https://www.mlb.com</link><description>MLB.com news</description><item><title>Holliday (wrist) unlikely to play again for O's in final week</title><link>https://www.mlb.com/news/jackson-holliday-left-wrist-injury-update</link><pubDate>Mon, 21 Sep 2026 20:49:36 GMT</pubDate><author>MLB.com</author><description>Holliday out with a wrist injury for the Orioles.</description><guid>1790023776</guid></item><item><title>Tigers' home ballpark renamed to Fifth Third Park</title><link>https://www.mlb.com/news/tigers-ballpark-name-changed-to-fifth-third-park</link><pubDate>Mon, 21 Sep 2026 19:37:00 GMT</pubDate><author>Jason Beck</author><description>Detroit's ballpark has a new name.</description><guid>1790019420</guid></item><item><title>test: O's rained out in Baltimore; makeup set for October</title><link>https://www.mlb.com/news/synthetic-rainout-fixture</link><pubDate>Mon, 21 Sep 2026 18:30:00 GMT</pubDate><author>MLB.com</author><description>Synthetic fixture item: a postponement due to rain with a makeup date.</description><guid>synthetic-rainout-1</guid></item><item><title>test: Regular-season finale notebook for the final week</title><link>https://www.mlb.com/news/synthetic-regular-fixture</link><pubDate>Mon, 21 Sep 2026 18:00:00 GMT</pubDate><author>MLB.com</author><description>Synthetic fixture item: a routine notebook entry.</description><guid>synthetic-regular-1</guid></item></channel></rss>"
+}

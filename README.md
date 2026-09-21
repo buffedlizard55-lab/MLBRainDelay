@@ -110,15 +110,30 @@ with the code and a plain-language explanation — it is never resolved silently
 | `nws-hourly-failed` / `nws-alerts-failed` / `stale` | one NWS product failed while the other loaded, or the last good fetch is being shown after a failed refresh (`stale` is shown as a footnote, not counted as an irregularity) |
 | `pbp-unavailable` / `boxscore-unavailable` | a cross-check source could not be fetched (retried next poll) |
 
-### What this site does *not* do (by design, see [Limitations](#limitations))
+### Social-media / news scanning (what is automated and what is not)
 
-It does **not** scan Twitter/X, Facebook, Instagram, Reddit or news sites. A keyless
-static page cannot read those platforms (all require authenticated APIs or server-side
-scraping, and none are verifiable sources on their own). Instead each game links to the
-places where official announcements are made — the MLB.com Gameday page, both clubs'
-official news pages, `@MLB` / `@MLB_PR`, the NWS forecast office and radar, the SPC
-convective outlook and Environment Canada — under a **Manual review** heading, so a
-human can check social chatter against the official record in one click.
+**Social platforms are not scanned.** Twitter/X, Facebook and Instagram have no
+keyless read API, and Reddit's JSON/RSS endpoints answer HTTP 403 to anonymous
+requests (verified 2026-09-21) — a static GitHub Page has no place to store API
+secrets, and none of those platforms are verifiable sources on their own.
+
+**Official news feeds ARE scanned, server-side.** The only machine-readable news
+feeds that are publicly readable without credentials are the official
+[MLB.com league RSS](https://www.mlb.com/feeds/news/rss.xml), the 30
+[club RSS feeds](https://www.mlb.com/{club}/feeds/news/rss.xml) and the
+[ESPN MLB RSS](https://www.espn.com/espn/rss/mlb/news) — all verified HTTP 200 on
+2026-09-21. The scheduled `news-scan` workflow runs `tools/news-scan.mjs` (in GitHub
+Actions, where outbound requests and a repo token exist) and writes
+`docs/news-report.json`: each headline that mentions delay/weather vocabulary,
+verbatim, with its article link, publication time and the words that matched — for a
+human to open and review. The scanner never asserts that a delay happened; it only
+surfaces headlines, and a failing feed is reported per-feed rather than skipped.
+The same transparent vocabulary and parser are unit-tested offline
+(`tools/news-test.mjs`, 11 assertions). The browser pages also link the places where
+official announcements are made — the MLB.com Gameday page, both clubs' official news
+pages, `@MLB` / `@MLB_PR`, the NWS forecast office and radar, the SPC convective
+outlook and Environment Canada — under a **Manual review** heading, so a human can
+check social chatter against the official record in one click.
 
 ## Project structure
 
@@ -136,6 +151,7 @@ assets/js/scoreboard.js · delay-feed.js · game.js   Page controllers
 assets/js/ui.js       DOM helpers, chips, logos
 tools/fixtures/       Captured, verified API payloads (each has _source / _verified)
 tools/*-test.mjs      Offline test suites (run in Node, no network)
+tools/news-scan.mjs   Official-news RSS scanner (league + club + ESPN feeds) → docs/news-report.json
 docs/verification.md  Line-by-line verification log with the URLs used
 docs/verification.html  Same, rendered for the site footer
 docs/workflows/       Optional GitHub Actions (Pages deploy, offline tests)
@@ -155,7 +171,14 @@ Open <http://localhost:8000>. The offline, network-free checks:
 for f in assets/js/*.js; do node --check "$f"; done
 node tools/delays-test.mjs    # 26 — status registry, advisories, timeline, box score, cross-checks, transitions
 node tools/weather-test.mjs   # 24 — NWS / ECCC / Open-Meteo normalisation, alert classes, risk rules, provider chain
+node tools/news-test.mjs      # 11 — official-news RSS parsing + delay/weather vocabulary classification
 node tools/render-test.mjs    #  6 — scoreboard + delay feed + game page rendered against captured payloads
+```
+
+Run the news scan locally (needs outbound network — works in GitHub Actions):
+
+```bash
+node tools/news-scan.mjs --out docs/news-report.json
 ```
 
 ## Deploy to GitHub Pages
@@ -166,7 +189,12 @@ to `main` republishes within about a minute. The offline test suite is enabled a
 `.github/workflows/smoke.yml` (every push, pull request and nightly 04:17 UTC).
 `docs/workflows/pages.yml` remains optional — copying it to `.github/workflows/`
 would switch deploys to the Actions pipeline (the two should not run at the same
-time).
+time). The official-news scan is a scheduled GitHub Action
+(`.github/workflows/news-scan.yml`, every 6 h) that runs `tools/news-scan.mjs` in
+Actions — where outbound requests and a repo write token exist — and writes
+`docs/news-report.json` back into the repo; this is how the "scan the news
+organizations" requirement is met without putting a scraper or secrets in the
+static browser pages.
 
 ## Notes & etiquette
 
@@ -190,11 +218,15 @@ time).
 ## Limitations
 
 See the end of [`docs/verification.md`](docs/verification.md) for the full list. In short:
-no social-media or news scanning (no keyless, verifiable way to do it from a static
-page); browser CORS for the ECCC endpoint could not be exercised from the build sandbox;
-the Sacramento (Athletics), London, Mexico City and other special-venue coordinates come
-from MLB's venue record and may be missing (flagged `no-coordinates`); the risk chip is a
-threshold reading of the forecast, not a delay prediction.
+Twitter/X, Facebook, Instagram and Reddit are not scanned (no keyless read path — verified
+2026-09-21); official-news scanning is limited to the keyless MLB.com / ESPN RSS feeds and
+runs server-side (scheduled workflow), not in the browser; the browser pages themselves
+therefore link those channels for manual review but do not read them; browser CORS for the
+ECCC endpoint could not be exercised from the build sandbox; the Sacramento (Athletics),
+London, Mexico City and other special-venue coordinates come from MLB's venue record and may
+be missing (flagged `no-coordinates`); the risk chip is a threshold reading of the forecast,
+not a delay prediction; and the social/headline layer is a "flag for review" aid — never an
+assertion that a delay happened.
 
 ## License
 
