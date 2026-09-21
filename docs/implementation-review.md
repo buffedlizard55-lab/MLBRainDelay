@@ -55,8 +55,9 @@ current game's restart. No language model generates game facts.
 - GitHub Pages API reported the existing site built at
   <https://buffedlizard55-lab.github.io/MLBRainDelay/> using `main` / root, legacy mode.
 - Changing Pages to Actions returned **403 Resource not accessible by integration**.
-  The new workflow detects legacy mode, uploads the report artifact and warns instead
-  of attempting an invalid deployment. Existing branch publishing is not disabled.
+  The workflow first attempts the authorized mode change with its own `pages:write`
+  token. If that fails, it uploads the report artifact and warns instead of attempting
+  an invalid deployment. Existing branch publishing is not disabled.
   Until authorized settings are changed, the new automated report artifact cannot
   reach the public inbox; the inbox will explicitly show unavailable reports.
 - Browser visual / real-network end-to-end verification is not established by the
@@ -89,3 +90,13 @@ current game's restart. No language model generates game facts.
 The existing static site needs no manually entered game updates. Manual source links
 are for verification, not data entry. Fully automatic, trusted social-report coverage
 and comprehensive restart ETAs remain unmet requirements, not completed features.
+
+## GitHub follow-through
+
+PR #5 merged after local verification; its GitHub test job passed. The first main
+report build also passed but deployment was correctly skipped in legacy mode.
+A follow-up tries the same Pages mode change with the workflow's explicitly granted
+`pages:write` token, without changing repository branches or bypassing authorization.
+The scan now emits a workflow warning if any feed is unavailable. Log/artifact
+retrieval through the sandbox failed with connection errors, so successful job
+completion alone is not treated as proof that all feeds succeeded.
