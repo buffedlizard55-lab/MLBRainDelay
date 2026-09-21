@@ -107,7 +107,7 @@
     const elapsed = state.lastCycleStartedAt ? Date.now() - state.lastCycleStartedAt : 0;
     const wait = overrideMs != null ? overrideMs : Math.max(0, interval - elapsed);
     state.nextPollAt = Date.now() + wait;
-    state.pollTimer = setTimeout(() => { if (!document.hidden) load(); else scheduleNext(); }, wait);
+    state.pollTimer = setTimeout(() => { if (!document.hidden) load(); else scheduleNext(IDLE_POLL_MS); }, wait);
   }
 
   function tickCountdown() {

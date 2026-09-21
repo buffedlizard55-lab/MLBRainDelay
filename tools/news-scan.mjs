@@ -8,7 +8,7 @@
  * because api.weather.gov / mlb.com RSS answer CLI/CI requests but most of
  * these hosts do not send CORS headers for a browser page to read them, and the
  * social platforms the request names (X/Twitter, Facebook, Instagram, Reddit)
- * have no keyless read API at all.
+ * are not integrated in this project.
  *
  * What it does — nothing more, nothing less:
  *   1. GET each configured RSS feed (RSS 2.0 XML).
@@ -28,14 +28,9 @@
  * article. Feed status is reported per feed, so a failing feed is visible,
  * never silently skipped.
  *
- * Verified feeds (fetched 2026-09-21 during verification, all HTTP 200):
- *   https://www.mlb.com/feeds/news/rss.xml                    (league)
- *   https://www.mlb.com/{club}/feeds/news/rss.xml             (30 clubs;
- *     URI pattern verified for orioles, bluejays, yankees, dodgers)
- *   https://www.espn.com/espn/rss/mlb/news                    (ESPN MLB)
- * Blocked / unavailable keyless (verified 2026-09-21):
- *   reddit.com/r/baseball{.json,.rss} -> HTTP 403 anonymous;
- *   x.com (Twitter), facebook.com, instagram.com -> no keyless read API.
+ * Configured feeds: MLB league and 30 clubs, plus ESPN (independent news).
+ * Availability is measured per request, not guaranteed by configuration.
+ * Social-platform adapters are not configured; no claim of exhaustive coverage.
  *
  * Usage:
  *   node tools/news-scan.mjs            # scan and print JSON to stdout
@@ -79,7 +74,7 @@ function decodeEntities(s) {
         const code = key[1] === 'x' || key[1] === 'X'
           ? parseInt(key.slice(2), 16)
           : parseInt(key.slice(1), 10);
-        if (Number.isFinite(code)) return String.fromCodePoint(code);
+        if (Number.isInteger(code) && code >= 0 && code <= 0x10ffff && !(code >= 0xd800 && code <= 0xdfff)) return String.fromCodePoint(code);
       }
       return m;
     });
@@ -136,14 +131,11 @@ function parseRss(xml) {
  * uninterpretable — the caller never invents a time. */
 function pubDateToEpoch(pubDate) {
   if (!pubDate) return null;
-  const MONTHS = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
-  // Strip the optional comma: "Mon, 21 Sep 2026 20:49:36 GMT"
-  const m = /^[A-Za-z]{3},?\s+(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s+([A-Za-z]+)$/.exec(String(pubDate).trim());
-  if (!m) { const t = Date.parse(pubDate); return Number.isNaN(t) ? null : t; }
-  const month = MONTHS[m[2].toLowerCase()];
-  if (month == null) return null;
-  const date = new Date(Date.UTC(Number(m[3]), month, Number(m[1]), Number(m[4]), Number(m[5]), Number(m[6] || 0)));
-  return Number.isNaN(date.getTime()) ? null : date.getTime();
+  // Require an explicit zone. Never interpret a publisher's wall time as UTC.
+  const text = String(pubDate).trim();
+  if (!/(?:GMT|UTC|[ECMP][SD]T|[+-]\d{4}|Z|[+-]\d{2}:\d{2})$/i.test(text)) return null;
+  const epoch = Date.parse(text);
+  return Number.isFinite(epoch) ? epoch : null;
 }
 
 /* ----------------------------------------------- classification (verbatim) */
@@ -156,8 +148,9 @@ function pubDateToEpoch(pubDate) {
 function classifyItem(item) {
   const text = `${item.title || ''} ${item.description || ''}`.toLowerCase();
   const lower = (list) => list.map((w) => w.toLowerCase());
-  const delay = lower(DELAY_WORDS).filter((w) => text.includes(w));
-  const weather = lower(WEATHER_WORDS).filter((w) => text.includes(w));
+  const matches = (w) => new RegExp(`\\b${w}${w === "wind" ? "(?:s|y)?\\b" : ""}`, "i").test(text);
+  const delay = lower(DELAY_WORDS).filter(matches);
+  const weather = lower(WEATHER_WORDS).filter(matches);
   return { flagged: delay.length > 0 || weather.length > 0, delay, weather };
 }
 
@@ -172,6 +165,9 @@ async function fetchFeed({ name, url }, { timeout = 15000 } = {}) {
     const res = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'application/rss+xml, application/xml, text/xml, */*' }, signal: ctrl.signal });
     if (!res.ok) return { name, url, ok: false, status: res.status, items: [], flagged: [], error: `HTTP ${res.status}` };
     const xml = await res.text();
+    if (!/<rss\b/i.test(xml) || !/<channel\b/i.test(xml) || !/<\/channel>/i.test(xml)) {
+      throw new Error('Unexpected feed format (expected RSS channel)');
+    }
     const parsed = parseRss(xml);
     const flagged = parsed.items
       .map((item) => {
@@ -222,7 +218,7 @@ async function run({ feeds = FEEDS, concurrency = 3, out = null } = {}) {
 }
 
 /* Exports for the offline tests (run() is only invoked from the CLI/main). */
-export { parseRss, classifyItem, decodeEntities, stripCdata, stripTags, pubDateToEpoch, DELAY_WORDS, WEATHER_WORDS, FEEDS };
+export { parseRss, classifyItem, decodeEntities, stripCdata, stripTags, pubDateToEpoch, DELAY_WORDS, WEATHER_WORDS, FEEDS, fetchFeed, run };
 
 /* --------------------------------------------------------------- CLI/main */
 

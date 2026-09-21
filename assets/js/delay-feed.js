@@ -212,7 +212,7 @@
     const n = state.games.length;
     const live = state.games.filter((g) => g.status.abstractGameState === 'Live').length;
     const active = state.games.filter((g) => (state.inspections.get(g.gamePk) || {}).active).length;
-    const wx = state.games.filter((g) => state.weather.has(g.gamePk)).length;
+    const wx = state.games.filter((g) => state.weather.get(g.gamePk)?.forecast).length;
     $('#status-line').textContent = `${n} game${n === 1 ? '' : 's'} · ${live} live · ${active} delayed now · forecasts for ${wx}/${n} · updated ${new Date().toLocaleTimeString()}`;
   }
 
@@ -224,7 +224,7 @@
     const wait = overrideMs != null ? overrideMs : Math.max(0, interval - elapsed);
     state.nextPollAt = Date.now() + wait;
     state.pollTimer = setTimeout(() => {
-      if (!document.hidden) load(); else scheduleNext();
+      if (!document.hidden) load(); else scheduleNext(IDLE_POLL_MS);
     }, wait);
   }
 
@@ -546,6 +546,7 @@
       const seg = (state.pbp.get(g.gamePk) || {}).timeline;
       const open = seg && seg.find((s) => s.open);
       if (open && open.startTime) a.appendChild(UI.el('span', 'feed-active-reason', `since ${MLB.localTime(open.startTime)}`));
+      a.appendChild(UI.el('span', 'feed-active-reason', 'Expected restart: not confirmed by this app'));
       strip.appendChild(a);
     });
     wrap.appendChild(strip);
@@ -807,6 +808,7 @@
       body.appendChild(UI.el('p', 'feed-reason', ins.active ? `${label} — per the official game status right now` : `${label}${ins.official.delayMinutes ? ` — ${MLB.fmtMinutes(ins.official.delayMinutes)} official delay` : ''}`));
       body.appendChild(UI.el('p', 'feed-desc', row.pending ? 'Fetching the play-by-play for the official advisory timeline…' : 'No status-change advisory found in the play-by-play; the facts below come from the schedule.'));
     }
+    if (ins.active) body.appendChild(UI.el('p', 'feed-reason', 'Expected start / restart: not confirmed by this app. Scheduled first pitch and forecast clearing times are not restart announcements. Check the linked club sources and written reports below.'));
     const facts = officialFacts(ins, box);
     if (facts.length) body.appendChild(UI.el('p', 'feed-desc', `Official: ${facts.join(' · ')}`));
     if (row.observed && row.observed.length) {
@@ -829,7 +831,8 @@
     body.appendChild(UI.el('p', 'feed-reason', Delays.statusLabel(ins.status)));
     const bits = [`Originally scheduled ${MLB.localDateTime(g.gameDate)}`];
     if (ins.reschedule) bits.push(`rescheduled to ${ins.reschedule.toDate || ''}${ins.reschedule.toIso ? ` (${MLB.localDateTime(ins.reschedule.toIso)})` : ''}`.trim());
-    if (ins.resume) bits.push(`resumes ${ins.resume.toDate || MLB.localDateTime(ins.resume.toIso)}`);
+    if (ins.resume && (ins.resume.toDate || ins.resume.toIso)) bits.push(`resumes ${ins.resume.toDate || MLB.localDateTime(ins.resume.toIso)}`);
+    else if (ins.status.kind === 'suspended') bits.push('resume date not confirmed by this app');
     if (ins.makeupOf) bits.push(ins.makeupOf.description || `makeup of ${ins.makeupOf.fromDate}`);
     if (g.officialDate && g._listingDate && g.officialDate !== g._listingDate) bits.push(`MLB officialDate is ${g.officialDate}`);
     if (!ins.reschedule && ins.status.kind === 'postponed') bits.push('no makeup date published yet');

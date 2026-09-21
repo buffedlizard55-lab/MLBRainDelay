@@ -1,94 +1,64 @@
-name: Official news scan (weather delays)
-
-# Server-side scan of the official, machine-readable news feeds that a static
-# GitHub Page cannot read from the browser (no CORS / no keyless social API).
-# It writes a small JSON report into the repo so the static pages can link it,
-# and opens a flag issue if the scan keeps failing. It NEVER asserts that a
-# delay happened — it only lists headlines that mention delay/weather vocabulary
-# with their official article link, for a human to review.
-#
-# Why feeds, not social platforms: verified 2026-09-21 —
-#   mlb.com/feeds/news/rss.xml + 30 club feeds   -> HTTP 200 keyless
-#   espn.com/espn/rss/mlb/news                   -> HTTP 200 keyless
-#   reddit.com/r/baseball{,.json,.rss}           -> HTTP 403 anonymous
-#   x.com (Twitter), facebook.com, instagram.com -> no keyless read API
-
+name: Refresh reports and deploy Pages
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
   schedule:
-    # Four times a day (a delay can begin at any first pitch).
-    - cron: '17 */6 * * *'
-
+    - cron: '7,22,37,52 * * * *'
 permissions:
-  contents: write
-  issues: write
-
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
 jobs:
-  scan:
+  build:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
+    outputs:
+      pages_type: ${{ steps.pages.outputs.build_type }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Use Node 20
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: 20
-
-      - name: Run the official-news scan
-        run: node tools/news-scan.mjs --out /tmp/news-report.json
-        env:
-          TZ: UTC
-
-      - name: Show scan summary
-        run: node -e "const d=require('/tmp/news-report.json'); console.log('feeds ok/failed:', d.feedsOk+'/'+d.feedsFailed, '· headlines flagged:', d.flagged.length)"
-
-      - name: Publish the report into the repo
-        run: mkdir -p docs && cp /tmp/news-report.json docs/news-report.json
-
-      - name: Commit and push the report (only when it changed)
+          node-version: 22
+      - name: Verify implementation
         run: |
-          if [ "$(git rev-parse --abbrev-ref HEAD)" != "main" ]; then
-            echo "not on main — skipping the commit (manual run on a branch)"
-            exit 0
+          for f in assets/js/*.js; do node --check "$f"; done
+          for f in tools/*-test.mjs; do node "$f"; done
+      - name: Scan sources and assemble static site
+        run: |
+          mkdir -p _site/docs
+          cp *.html _site/
+          cp -r assets _site/
+          cp -r docs/* _site/docs/
+          node tools/news-scan.mjs --out _site/docs/news-report.json
+          touch _site/.nojekyll
+      - name: Check Pages deployment mode
+        id: pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mode=$(gh api "repos/$GITHUB_REPOSITORY/pages" --jq .build_type)
+          echo "build_type=$mode" >> "$GITHUB_OUTPUT"
+          if [ "$mode" != workflow ]; then
+            echo '::warning::Pages still uses branch publishing. A repository administrator must enable GitHub Actions as the Pages source. The report artifact is built but cannot be deployed automatically.'
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/news-report.json
-          if git diff --cached --quiet; then
-            echo "report unchanged — nothing to commit"
-          else
-            git commit -m "chore: refresh official news-scan report" -m "[skip ci]"
-            git push origin HEAD:main
-          fi
-
-      - name: Flag a scan outage for manual review
-        if: always()
-        uses: actions/github-script@v7
+      - uses: actions/configure-pages@v5
+        if: steps.pages.outputs.build_type == 'workflow'
+      - uses: actions/upload-pages-artifact@v3
         with:
-          script: |
-            const fs = require('fs');
-            let summary;
-            try { summary = JSON.parse(fs.readFileSync('/tmp/news-report.json', 'utf8')); } catch (e) { return; }
-            const failed = (summary.feedsFailed || 0);
-            if (failed === 0) return;
-            const allFailed = failed >= (summary.feedsScanned || 0);
-            const title = allFailed
-              ? '🚩 News scan: every official feed failed'
-              : `🚩 News scan: ${failed} of ${summary.feedsScanned} feeds failed`;
-            const body = [
-              'The scheduled official-news scan could not read some feeds. The report keeps the last good result and is NOT a sign of a delay.',
-              'See `docs/news-report.json` for per-feed status, and tools/news-scan.mjs §feeds for the verified feed list.',
-            ].join('\n\n');
-            // Re-open on failure; do not spam a new issue every run.
-            const { data: existing } = await github.rest.issues.listForRepo({
-              owner: context.repo.owner, repo: context.repo.repo,
-              state: 'open', labels: ['flagged-for-review'], per_page: 100,
-            });
-            const found = (existing || []).find(i => i.title === title);
-            if (found) {
-              await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: found.number, body: `Re-checked ${new Date().toISOString()} — ${failed}/${summary.feedsScanned} feeds failing.` });
-            } else {
-              await github.rest.issues.create({ owner: context.repo.owner, repo: context.repo.repo, title, body, labels: ['flagged-for-review'] });
-            }
+          path: _site
+  deploy:
+    needs: build
+    if: needs.build.outputs.pages_type == 'workflow'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

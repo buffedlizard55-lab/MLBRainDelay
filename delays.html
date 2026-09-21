@@ -46,31 +46,30 @@
 
     <div id="status-line" class="status-line"></div>
 
+    <section class="manual-review" aria-labelledby="reports-heading">
+      <h2 id="reports-heading">Written reports · publisher inbox</h2>
+      <p>Automatic scan of MLB league / 30 club RSS feeds and ESPN. Latest available headlines across all dates,
+        independent of the game-date selector above. Scheduled every 15 minutes; publishing can be delayed.
+        These are source-linked review candidates, not verified restart announcements.
+        We never infer an expected start time from weather or a scheduled first pitch.</p>
+      <div id="written-reports" aria-live="polite">Loading publisher reports…</div>
+      <p><a href="docs/news-report.json">Full source snapshot (JSON)</a> · <a href="docs/implementation-review.md">Coverage, audit and next steps</a></p>
+    </section>
     <section class="manual-review">
       <h3>Manual review — official channels</h3>
-      <p>
-        Every fact above comes from the MLB StatsAPI, the U.S. National Weather Service or
-        Environment and Climate Change Canada, and every row links to the exact payload it was read
-        from. Social platforms (X/Twitter, Facebook, Instagram, Reddit) are not read by this static
-        page: they have no keyless read API, and Reddit's RSS/JSON endpoints answer HTTP 403 to
-        anonymous browser requests (verified 2026-09-21). The only machine-readable news feeds that
-        are publicly readable are the official MLB.com league and club RSS feeds and the ESPN MLB
-        RSS feed — a server-side scanner (the scheduled
-        <code>news-scan</code> workflow in
-        <a href="https://github.com/buffedlizard55-lab/MLBRainDelay" target="_blank" rel="noopener">this repo</a>)
-        lists their headlines that mention delay/weather vocabulary, with links, in
-        <a href="https://github.com/buffedlizard55-lab/MLBRainDelay/blob/main/docs/news-report.json" target="_blank" rel="noopener">docs/news-report.json</a>. To confirm a delay against a human announcement, use the
-        club's official channels below — the teams' own accounts are the first place MLB delay,
-        tarp and first-pitch updates are posted.
-      </p>
+      <p>MLB status and government weather are separate from publisher reports and forecasts.
+        Open-Meteo fallback forecasts are non-government model data and are flagged.
+        X/Twitter, Facebook, Instagram and Reddit are <strong>not ingested</strong> by this project.
+        Reporter accounts are not independently verified. Community links below are discovery links,
+        not official evidence. No claim of exhaustive social coverage is made.</p>
       <details>
-        <summary>Official MLB and club channels (opens in a new tab)</summary>
+        <summary>Source and discovery links (opens in a new tab)</summary>
         <div class="manual-links">
           <a class="source-link" target="_blank" rel="noopener" href="https://www.mlb.com/news">MLB.com News</a>
           <a class="source-link" target="_blank" rel="noopener" href="https://www.mlb.com/scores">MLB.com Scores</a>
           <a class="source-link" target="_blank" rel="noopener" href="https://x.com/MLB">@MLB</a>
           <a class="source-link" target="_blank" rel="noopener" href="https://x.com/MLB_PR">@MLB_PR</a>
-          <a class="source-link" target="_blank" rel="noopener" href="https://www.reddit.com/r/baseball/">r/baseball</a>
+          <a class="source-link" target="_blank" rel="noopener" href="https://www.reddit.com/r/baseball/">r/baseball (community, not official)</a>
           <a class="source-link source-link-gov" target="_blank" rel="noopener" href="https://www.weather.gov/">weather.gov</a>
           <a class="source-link source-link-gov" target="_blank" rel="noopener" href="https://www.spc.noaa.gov/products/outlook/">SPC convective outlook</a>
           <a class="source-link source-link-gov" target="_blank" rel="noopener" href="https://radar.weather.gov/">NWS radar</a>
@@ -111,5 +110,6 @@
   <script src="assets/js/weather.js"></script>
   <script src="assets/js/clubs.js"></script>
   <script src="assets/js/delay-feed.js"></script>
+  <script src="assets/js/reports.js"></script>
 </body>
 </html>

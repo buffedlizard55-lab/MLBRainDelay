@@ -39,3 +39,6 @@ jobs:
 
       - name: Render scoreboard, delay feed and game page against captured payloads
         run: node tools/render-test.mjs
+
+      - name: Validate written report safety and freshness
+        run: node tools/reports-test.mjs

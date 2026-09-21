@@ -2451,3 +2451,10 @@ a:hover { text-decoration: underline; }
   .timeline-item { grid-template-columns: 1fr; gap: 2px; }
   .wx-strip { padding: 8px 14px 0; }
 }
+
+/* Written publisher inbox: compact chat messages, safely rendered as text. */
+.report-message { border: 1px solid #394657; border-left: 3px solid #58a6ff; border-radius: 4px 14px 14px; padding: 1rem 1.2rem; margin: 1rem 0; overflow-wrap: anywhere; }
+.report-message h3 { margin: .5rem 0; line-height: 1.5; font-size: 1rem; }
+.report-byline { color: #9cb4cd; font-size: .85rem; }
+.report-warning { color: #f4c568; line-height: 1.5; }
+:focus-visible { outline: 3px solid #58a6ff; outline-offset: 3px; }

@@ -112,7 +112,7 @@
     const wait = overrideMs != null ? overrideMs : Math.max(0, interval - elapsed);
     pollTimer = setTimeout(() => {
       if (!document.hidden) load();
-      else scheduleNext();
+      else scheduleNext(IDLE_POLL_MS);
     }, wait);
   }
 
