@@ -99,7 +99,8 @@ with the code and a plain-language explanation — it is never resolved silently
 | `non-weather` | delay/postponement reason is not weather (Power, Injury, Emergency …) — still shown |
 | `multiple-schedule-entries` | one `gamePk` appears on more than one date (postponement + makeup) |
 | `mlb-wet-forecast-dry` / `mlb-dry-forecast-wet` | MLB's first-pitch weather line contradicts the official forecast |
-| `nws-no-coverage` / `nws-failed` / `no-coordinates` / `eccc-failed` / `non-government-source` | which weather source answered, and why a fallback was used |
+| `nws-no-coverage` / `nws-failed` / `no-coordinates` / `eccc-failed` / `non-government-source` / `no-provider` | which weather source answered, and why a fallback was used (or why none could) |
+| `nws-hourly-failed` / `nws-alerts-failed` / `stale` | one NWS product failed while the other loaded, or the last good fetch is being shown after a failed refresh (`stale` is shown as a footnote, not counted as an irregularity) |
 | `pbp-unavailable` / `boxscore-unavailable` | a cross-check source could not be fetched (retried next poll) |
 
 ### What this site does *not* do (by design, see [Limitations](#limitations))

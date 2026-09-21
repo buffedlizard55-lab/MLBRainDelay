@@ -25,12 +25,53 @@ function test(name, fn) {
 
 console.log('delays.js — status registry classification');
 const registry = fx('game-status-registry.json').statuses;
-test('every registry status classifies without throwing and with a kind', () => {
+test('every one of the 210 registry rows classifies to the kind its family implies, with no spurious flags', () => {
+  assert.equal(registry.length, 210);
+  const expectKind = (s) => {
+    const d = s.detailedState;
+    if (/^Delayed Start/.test(d)) return 'delayed-start';
+    if (/^Delayed: About to Resume/.test(d)) return 'about-to-resume';
+    if (/^Delayed/.test(d)) return 'delayed';
+    if (/^Postponed/.test(d)) return 'postponed';
+    if (/^Suspended: About to Resume/.test(d)) return 'suspended-about-to-resume';
+    if (/^Suspended/.test(d)) return 'suspended';
+    if (/^Cancelled/.test(d)) return 'cancelled';
+    if (/^Completed Early/.test(d)) return 'completed-early';
+    if (/^Forfeit/.test(d)) return 'forfeit';
+    if (/challenge|review|Instant Replay/i.test(d)) return 'review';
+    if (/^(Final|Game Over)/.test(d)) return 'final';
+    if (d === 'Warmup') return 'warmup';
+    if (d === 'In Progress') return 'live';
+    if (d === 'Pre-Game') return 'pregame';
+    if (/^Scheduled/.test(d)) return 'scheduled';
+    return 'unknown';
+  };
   registry.forEach((s) => {
     const p = Delays.parseStatus(s);
-    assert.ok(p.kind, `${s.statusCode} has no kind`);
-    assert.notEqual(p.kind, 'unknown', `${s.statusCode} ${s.detailedState} classified unknown`);
+    assert.equal(p.kind, expectKind(s), `${s.statusCode} "${s.detailedState}" → ${p.kind}`);
+    // The registry's own reason must round-trip (or be a qualifier we ignore).
+    const qualifier = ['About to Resume', 'Tiebreaker', 'Review', 'Tied', 'Tied (won in tiebreaker)'].includes(s.reason);
+    if (s.reason && !qualifier && p.disruption) assert.equal(p.reason, s.reason, `${s.statusCode} reason`);
+    // Registry rows are self-consistent: only the reason-less "*O" codes may be flagged, and only reason-missing.
+    const allowed = p.flags.filter((f) => !(f.code === 'reason-missing' && !s.reason));
+    assert.deepEqual(allowed, [], `${s.statusCode} "${s.detailedState}" flagged ${JSON.stringify(p.flags)}`);
   });
+  // Both letters of the same code must agree in both directions.
+  assert.equal(Delays.parseStatus({ statusCode: 'QR', codedGameState: 'Q', detailedState: 'Forfeit: Rule', reason: 'Rule' }).reason, 'Rule');
+  assert.equal(Delays.parseStatus({ statusCode: 'QR', codedGameState: 'Q', detailedState: 'Forfeit' }).reason, 'Rule', 'forfeit letter table, not the weather table');
+  assert.equal(Delays.parseStatus({ statusCode: 'T9', codedGameState: 'T', detailedState: 'Scheduled: COVID-19', reason: 'COVID-19', abstractGameState: 'Preview' }).kind, 'scheduled');
+});
+test('statusLabel: reason appended only when not already in the state text; qualifiers shown; regex-safe', () => {
+  assert.equal(Delays.statusLabel(Delays.parseStatus(registry.find((s) => s.statusCode === 'PR'))), 'Delayed Start: Rain');
+  assert.equal(Delays.statusLabel(Delays.parseStatus({ statusCode: 'IR', codedGameState: 'I', detailedState: 'Delayed', reason: 'Rain' })), 'Delayed: Rain');
+  assert.equal(Delays.statusLabel(Delays.parseStatus(registry.find((s) => s.statusCode === 'IT'))), 'Delayed: Tiebreaker', 'MLB state text already carries the qualifier');
+  assert.equal(Delays.statusLabel(Delays.parseStatus({ statusCode: 'IT', codedGameState: 'I', detailedState: 'Delayed', reason: 'Tiebreaker' })), 'Delayed (Tiebreaker)');
+  assert.equal(Delays.statusLabel(Delays.parseStatus(registry.find((s) => s.statusCode === 'IZ'))), 'Delayed: About to Resume');
+  assert.equal(Delays.statusLabel(Delays.parseStatus(registry.find((s) => s.statusCode === 'FT'))), 'Final: Tied');
+  // A reason containing regex metacharacters must not throw or mis-match.
+  const weird = Delays.parseStatus({ statusCode: 'DI', codedGameState: 'D', detailedState: 'Postponed', reason: 'Rain (field unplayable) [see note]' });
+  assert.equal(Delays.statusLabel(weird), 'Postponed: Rain (field unplayable) [see note]');
+  assert.equal(Delays.statusLabel(null), '');
 });
 test('delayed-start codes (P?)', () => {
   const p = Delays.parseStatus(registry.find((s) => s.statusCode === 'PR'));
@@ -78,6 +119,9 @@ test('postponed / cancelled / completed early / suspended / forfeit', () => {
   assert.equal(ur.active, true);
   assert.equal(Delays.parseStatus(registry.find((s) => s.statusCode === 'UZ')).kind, 'suspended-about-to-resume');
   assert.equal(Delays.parseStatus(registry.find((s) => s.statusCode === 'QR')).kind, 'forfeit');
+  assert.equal(Delays.parseStatus(registry.find((s) => s.statusCode === 'QR')).reason, 'Rule');
+  assert.equal(Delays.parseStatus(registry.find((s) => s.statusCode === 'IT')).kind, 'delayed');
+  assert.equal(Delays.parseStatus(registry.find((s) => s.statusCode === 'IT')).reason, null, 'Tiebreaker is a qualifier, not a delay reason');
 });
 test('reason falls back to the detailedState suffix, then to the code letter', () => {
   const suffix = Delays.parseStatus({ detailedState: 'Delayed: Lightning' });

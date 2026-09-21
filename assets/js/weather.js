@@ -252,19 +252,25 @@ const Weather = (() => {
 
     const warnings = Array.isArray(p.warnings) ? p.warnings : [];
     const alerts = warnings.map((w, i) => {
-      // Shape not observed live (the verified item had `warnings: []`), so
-      // read defensively: any {en} leaf on the usual ECCC warning keys.
-      const event = enText(w && (w.name || w.type || w.description || w.event)) || 'Weather warning';
+      // Field names come from the collection's published queryables schema
+      // (https://api.weather.gc.ca/collections/citypageweather-realtime/queryables,
+      // read 2026-09-21): warnings[].description / type / priority /
+      // alertColourLevel / eventIssue / expiryTime / url, all bilingual.
+      // A populated example was not observed live (the verified items had
+      // `warnings: []`), so unknown leaves fall back to the city-page URL.
+      const description = enText(w && w.description) || '';
+      const type = enText(w && w.type) || '';
+      const event = description || type || 'Weather warning';
       const url = enText(w && w.url) || enText(p.url) || null;
       return {
         id: `eccc-${p.identifier || 'x'}-${i}`,
-        url, event, headline: enText(w && w.description) || event,
-        severity: enText(w && w.priority) || '', urgency: '', certainty: '',
-        status: 'Actual', messageType: '',
-        onset: enText(w && (w.eventIssue || w.issue)) || null, ends: null, expires: null,
+        url, event, headline: description || event,
+        severity: enText(w && (w.priority || w.alertColourLevel)) || '', urgency: '', certainty: '',
+        status: 'Actual', messageType: type,
+        onset: enText(w && w.eventIssue) || null, ends: null, expires: enText(w && w.expiryTime) || null,
         sender: 'Environment and Climate Change Canada',
         areaDesc: enText(p.name) || '',
-        description: '', instruction: '',
+        description: type && type !== description ? type : '', instruction: '',
         kind: classifyAlertEvent(event),
         provider: 'eccc',
       };

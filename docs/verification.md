@@ -19,7 +19,9 @@ environment and is therefore surfaced as a flag or a footnote in the UI.
 
 | Claim on the site | Verified | Evidence (live URL → value) |
 |---|---|---|
-| `status.statusCode` is a two-letter code: game state letter + reason letter | ✅ | `GET /api/v1/gameStatus` — `PR` = "Delayed Start: Rain", `IR` = "Delayed: Rain", `IZ` = "Delayed: About to Resume", `DI` = "Postponed" (reason Inclement Weather), `DR`, `CR`, `OR` = "Completed Early: Rain", `UR`/`TR` suspended, `PW` Warmup, `IH` Instant Replay, `MA` Manager Challenge, `FT` "Final: Tied", `QR` Forfeit. 32 rows captured in `tools/fixtures/game-status-registry.json`. |
+| `status.statusCode` is a two-letter code: game state letter + reason letter | ✅ | `GET /api/v1/gameStatus` — `PR` = "Delayed Start: Rain", `IR` = "Delayed: Rain", `IZ` = "Delayed: About to Resume", `DI` = "Postponed" (reason Inclement Weather), `DR`, `CR`, `OR` = "Completed Early: Rain", `UR`/`TR` suspended, `PW` Warmup, `IH` Instant Replay, `MA` Manager Challenge, `FT` "Final: Tied", `QR` "Forfeit: Rule". **All 210 rows** of the live registry (fetched 2026-09-21 with `?fields=statusCode,codedGameState,detailedState,abstractGameState`) are transcribed verbatim into `tools/fixtures/game-status-registry.json`; the test suite classifies every row and fails if any of them is mis-classified or flagged spuriously. |
+| Forfeit codes (`Q*` / `R*`) use a **different** second-letter table from the weather one: K Delay, X Appear, Q Lineup, J Ejection, I Ineligible, N Refusal, V Unplayable, **R Rule**, O none | ✅ | Same registry. Encoded separately in `Delays.FORFEIT_REASON_BY_CODE` (found in Pass 2 — the Pass 1 fixture had guessed `QR` = "Forfeit: Rain"). |
+| Some second letters are game-state **qualifiers**, not reasons: `IZ`/`UZ` About to Resume, `IT` Tiebreaker, `IH` Review, `FT`/`OT` Tied, `FW`/`OW` Tied (won in tiebreaker), `PW` Warmup — MLB puts these words in `reason` too | ✅ | Same registry. `Delays.parseStatus` never reports them as a delay reason and does not raise `reason-missing` for them; they are returned as `qualifier` and printed by `Delays.statusLabel`. |
 | Reason letters R Rain, S Snow, G Wet Grounds, V Venue, F Fog, C Cold, D Air Quality, B Wind, I Inclement Weather, P Power, Y Ceremony, L Lightning, E Emergency, 9 COVID-19, A Tragedy, M Mercy, O none | ✅ | Same registry (`reason` field for each code). Encoded in `Delays.REASON_BY_CODE`; an unknown letter is flagged `unknown-reason-code`, never guessed. |
 | The live schedule sends `detailedState`, `statusCode` **and** `reason` separately | ✅ | `schedule?sportId=1&gamePk=823062` → `status:{abstractGameState:"Final",codedGameState:"D",detailedState:"Postponed",statusCode:"DI",reason:"Inclement Weather"}`. |
 | Precedence: `status.reason` → `"X: <reason>"` suffix → code letter; a disagreement is flagged `reason-conflict` | ✅ tested | `tools/delays-test.mjs` "reason falls back…", "conflicting words vs letters…". |
@@ -71,7 +73,7 @@ environment and is therefore surfaced as a flag or a footnote in the UI.
 | Hourly timestamps are UTC without an offset (`2026-09-20T16:00:00`) | ✅ | Same response; parsed as UTC. |
 | ECCC labels the collection **experimental** | ✅ | Collection metadata, 2026-09-20. |
 | The endpoint answers browser CORS requests | ⚠️ **not exercised** | Could not be tested from the build sandbox (no browser, outbound TLS blocked). If the browser blocks it, Rogers Centre falls to Open-Meteo and the row is flagged `eccc-failed` + `non-government-source`. **First thing to check in the deployed site.** |
-| `warnings[]` item shape | ⚠️ | Never observed populated. The normaliser reads `type/description/priority/eventIssue/expiryTime` defensively and prints whatever text exists; an unexpected shape yields an "ECCC warning (see city page)" row with the official link rather than nothing. |
+| `warnings[]` item shape | ✅ schema / ⚠️ no populated sample | Field names taken from the collection's published queryables schema (`/collections/citypageweather-realtime/queryables`, read 2026-09-21): `warnings[].description`, `.type`, `.priority`, `.alertColourLevel`, `.eventIssue`, `.expiryTime`, `.url` — all bilingual `{en, fr}`. No populated item was captured live (Toronto, Tulita and Chéticamp all had `warnings: []` on 2026-09-21), so the normaliser is unit-tested against a synthetic item built from those names and falls back to the city-page URL if a field is absent. |
 
 ## 4. Weather — Open-Meteo (last resort only)
 
@@ -112,6 +114,26 @@ with a loose `event` label could be mistaken for an advisory — `eventType` is 
 authoritative; (3) TBD start times were rendered as a fake clock time on all three pages;
 (4) `window.X` lookups broke when the scripts run outside a browser global (tests) —
 replaced with `typeof X` guards.
+
+## 8. Pass 2 — review findings (bugs, edge cases, wrong assumptions)
+
+```
+$ for f in assets/js/*.js; do node --check "$f"; done      # clean
+$ node tools/delays-test.mjs     # 26 passed
+$ node tools/weather-test.mjs    # 23 passed
+$ node tools/render-test.mjs     #  5 passed
+```
+
+| # | Finding | Fix |
+|---|---|---|
+| 1 | Pass 1 status fixture had 32 hand-picked rows and **guessed** `QR` = "Forfeit: Rain". The live registry says "Forfeit: Rule" — forfeits use a different letter table. | Fetched all 210 live rows into the fixture; added `FORFEIT_REASON_BY_CODE`; the registry test now asserts every row's kind, reason round-trip and "no spurious flags". |
+| 2 | `IZ` About to Resume, `IT` Tiebreaker, `IH` Review, `FT` Tied etc. carry qualifier words in `reason`; Pass 1 treated them as delay reasons and could raise `reason-missing`/`reason-conflict`. | `parseStatus` classifies by `detailedState` words first, ignores `NON_REASON_WORDS` as reasons, exposes them as `qualifier`. |
+| 3 | The fast status sweep **merged** the fresh status into the old one (`Object.assign(g.status, fresh.status)`), so a `reason: "Rain"` survived the flip to `In Progress` (which has no `reason`) and the card kept saying "Rain". | Replace the status object instead of merging (scoreboard.js, delay-feed.js). |
+| 4 | `scoreboard.js` built a `RegExp` from `status.reason` unescaped — a reason with `(`/`)` would throw and blank the ticker. | One shared, escaped, tested `Delays.statusLabel()` used by all pages. |
+| 5 | `MLB.getJSON` always sent `Accept: application/json`; NWS content-negotiates and documents `application/geo+json`/`ld+json` — safest is to send no `Accept` for weather hosts. | `accept: null` now omits the header. |
+| 6 | ECCC `warnings[]` was read with guessed field names. | Names taken from the published queryables schema (§3); unit test added. |
+| 7 | A delayed-start segment's advisory span (posted → warmup) was printed like an official duration. It is not: MLB's official figure is first pitch − scheduled start (`gameInfo.delayDurationMinutes`), which the pages also show. | Timeline text now says "advisory posted 4h 12m before play resumed"; the official minutes remain the headline number. |
+| 8 | README flag table missed `nws-hourly-failed`, `nws-alerts-failed`, `no-provider`, `stale`. | Added. |
 
 ---
 

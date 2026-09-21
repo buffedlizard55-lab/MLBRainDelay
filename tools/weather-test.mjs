@@ -112,6 +112,36 @@ await test('bilingual leaves → en; hourly lop → pop; current conditions; tex
   assert.deepEqual(n.alerts, []);
   assert.equal(n.hourlyIssued, '2026-09-20T15:30:00Z');
 });
+await test('ECCC warnings[] (schema-named fields) → normalized alerts with weather.gc.ca link', () => {
+  // Field names per the collection queryables schema (no populated live
+  // example was captured; see docs/verification.md §7).
+  const base = fx('eccc-toronto-sample.json').features[0];
+  const feat = JSON.parse(JSON.stringify(base));
+  feat.properties.warnings = [{
+    description: { en: 'SEVERE THUNDERSTORM WATCH IN EFFECT', fr: 'VEILLE D\u2019ORAGES VIOLENTS EN VIGUEUR' },
+    type: { en: 'watch', fr: 'veille' },
+    priority: { en: 'high', fr: 'haute' },
+    alertColourLevel: { en: 'yellow', fr: 'jaune' },
+    eventIssue: { en: '2026-09-21T18:05:00Z', fr: '2026-09-21T18:05:00Z' },
+    expiryTime: { en: '2026-09-22T02:00:00Z', fr: '2026-09-22T02:00:00Z' },
+    url: { en: 'https://weather.gc.ca/warnings/report_e.html?on41', fr: 'https://meteo.gc.ca/warnings/report_f.html?on41' },
+  }];
+  const n = Weather.normalizeEccc(feat);
+  assert.equal(n.alerts.length, 1);
+  const a = n.alerts[0];
+  assert.equal(a.event, 'SEVERE THUNDERSTORM WATCH IN EFFECT');
+  assert.equal(a.url, 'https://weather.gc.ca/warnings/report_e.html?on41');
+  assert.equal(a.onset, '2026-09-21T18:05:00Z');
+  assert.equal(a.expires, '2026-09-22T02:00:00Z');
+  assert.equal(a.provider, 'eccc');
+  assert.equal(a.kind.level, 'watch');
+  assert.equal(a.kind.weather, true);
+  // A warning with only a url falls back to the city page, never throws.
+  feat.properties.warnings = [{ url: null }];
+  const n2 = Weather.normalizeEccc(feat);
+  assert.equal(n2.alerts[0].event, 'Weather warning');
+  assert.equal(n2.alerts[0].url, 'https://weather.gc.ca/en/location/index.html?coords=43.63,-79.39');
+});
 await test('nearestFeature picks the closest point', () => {
   const json = { features: [
     { geometry: { coordinates: [-79.39, 43.63] }, id: 'a' },

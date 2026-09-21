@@ -94,7 +94,6 @@
 
   function tzOf(g) { return g.venue && g.venue.timeZone && g.venue.timeZone.id; }
 
-  function escapeRe(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
   async function mapLimit(items, limit, fn) {
     const out = new Array(items.length);
@@ -282,7 +281,9 @@
         const fresh = byPk.get(g.gamePk);
         if (!fresh) return;
         const before = JSON.stringify(g.status);
-        g.status = Object.assign({}, g.status || {}, fresh.status || {});
+        // Replace, don't merge: a stale `reason` ("Rain") must not survive the
+        // flip to "In Progress", whose status object carries no reason key.
+        g.status = Object.assign({}, fresh.status || {});
         ['rescheduleDate', 'rescheduleGameDate', 'rescheduledFrom', 'rescheduledFromDate', 'resumeDate', 'resumedFrom'].forEach((k) => { if (fresh[k] != null) g[k] = fresh[k]; });
         if (JSON.stringify(g.status) !== before) { changed = true; state.inspections.set(g.gamePk, Delays.inspectGame(g)); }
       });
@@ -524,7 +525,8 @@
       const a = UI.el('a', 'feed-active-link', '', { href: `game.html?gamePk=${g.gamePk}` });
       a.appendChild(UI.el('span', 'feed-active-game', gameTitle(g)));
       a.appendChild(UI.el('span', 'feed-active-type', ins.status.detailedState));
-      if (ins.status.reason && !new RegExp(escapeRe(ins.status.reason), 'i').test(ins.status.detailedState)) a.appendChild(UI.el('span', 'feed-active-reason', ins.status.reason));
+      const extra = Delays.statusLabel(ins.status).slice(ins.status.detailedState.length).replace(/^:\s*/, '');
+      if (extra) a.appendChild(UI.el('span', 'feed-active-reason', extra));
       const seg = (state.pbp.get(g.gamePk) || {}).timeline;
       const open = seg && seg.find((s) => s.open);
       if (open && open.startTime) a.appendChild(UI.el('span', 'feed-active-reason', `since ${MLB.localTime(open.startTime)}`));
@@ -732,7 +734,11 @@
     const reason = seg.reason ? `: ${seg.reason}` : '';
     const where = seg.inning != null && seg.kind !== 'delayed-start' ? ` — ${seg.halfInning === 'top' ? 'Top' : seg.halfInning === 'bottom' ? 'Bot' : ''} ${seg.inning}` : '';
     if (seg.open) return `${meta.label}${reason}${where} — ongoing since ${MLB.localTime(seg.startTime)}`;
-    const dur = seg.minutes != null ? ` (${MLB.fmtMinutes(seg.minutes)})` : '';
+    // For a delayed start the advisory span (posted → warmup) is not MLB's
+    // official figure, which is first pitch − scheduled start; say so.
+    const dur = seg.minutes != null
+      ? (seg.kind === 'delayed-start' ? ` (advisory posted ${MLB.fmtMinutes(seg.minutes)} before play resumed)` : ` (${MLB.fmtMinutes(seg.minutes)})`)
+      : '';
     return `${meta.label}${reason}${where}${dur}`;
   }
 
@@ -781,7 +787,7 @@
       body.appendChild(UI.el('p', 'feed-desc', `${seg.events.length} official status-change advisor${seg.events.length === 1 ? 'y' : 'ies'} in the play-by-play${seg.freeText ? ' (free-text advisory)' : ''}.`));
       body.appendChild(timelineList(seg));
     } else {
-      const label = ins.status.reason && !new RegExp(escapeRe(ins.status.reason), 'i').test(ins.status.detailedState) ? `${ins.status.detailedState}: ${ins.status.reason}` : ins.status.detailedState;
+      const label = Delays.statusLabel(ins.status);
       body.appendChild(UI.el('p', 'feed-reason', ins.active ? `${label} — per the official game status right now` : `${label}${ins.official.delayMinutes ? ` — ${MLB.fmtMinutes(ins.official.delayMinutes)} official delay` : ''}`));
       body.appendChild(UI.el('p', 'feed-desc', row.pending ? 'Fetching the play-by-play for the official advisory timeline…' : 'No status-change advisory found in the play-by-play; the facts below come from the schedule.'));
     }
@@ -804,8 +810,7 @@
     if (ins.status.reason) chips.push(UI.el('span', `chip ${rc === 'other' ? 'chip-nonweather' : 'chip-weather'}`, rc === 'other' ? `${ins.status.reason} (non-weather)` : ins.status.reason));
     if (risk && risk.level !== 'unknown') chips.push(UI.riskChip(risk.level, `Forecast ${Weather.RISK_META[risk.level].label}`, risk.reasons.join(' ')));
     body.appendChild(gameHead(g, chips));
-    const head = `${ins.status.detailedState}${ins.status.reason && !new RegExp(escapeRe(ins.status.reason), 'i').test(ins.status.detailedState) ? `: ${ins.status.reason}` : ''}`;
-    body.appendChild(UI.el('p', 'feed-reason', head));
+    body.appendChild(UI.el('p', 'feed-reason', Delays.statusLabel(ins.status)));
     const bits = [`Originally scheduled ${MLB.localDateTime(g.gameDate)}`];
     if (ins.reschedule) bits.push(`rescheduled to ${ins.reschedule.toDate || ''}${ins.reschedule.toIso ? ` (${MLB.localDateTime(ins.reschedule.toIso)})` : ''}`.trim());
     if (ins.resume) bits.push(`resumes ${ins.resume.toDate || MLB.localDateTime(ins.resume.toIso)}`);

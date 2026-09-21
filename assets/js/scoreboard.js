@@ -162,7 +162,7 @@
         games.forEach((g) => {
           const fresh = byPk.get(g.gamePk);
           if (!fresh) return;
-          g.status = Object.assign({}, g.status || {}, fresh.status || {});
+          g.status = Object.assign({}, fresh.status || {}); // replace, not merge: no stale `reason`
           ['rescheduleDate', 'rescheduleGameDate', 'rescheduledFrom', 'rescheduledFromDate', 'resumeDate', 'resumedFrom'].forEach((k) => {
             if (fresh[k] != null) g[k] = fresh[k];
           });
@@ -309,7 +309,7 @@
       const item = UI.el('a', 'review-ticker-link', '', { href: `game.html?gamePk=${g.gamePk}` });
       item.appendChild(UI.el('span', 'ticker-game', `${teamLabel(g.teams.away.team, 'AWY')} @ ${teamLabel(g.teams.home.team, 'HOM')}`));
       if (g.linescore && g.status.abstractGameState === 'Live') item.appendChild(UI.el('span', 'ticker-inn', MLB.inningLabel(g.linescore, g.status)));
-      item.appendChild(UI.el('span', 'ticker-type', ins.status.detailedState + (ins.status.reason && !new RegExp(ins.status.reason, 'i').test(ins.status.detailedState) ? `: ${ins.status.reason}` : '')));
+      item.appendChild(UI.el('span', 'ticker-type', Delays.statusLabel(ins.status)));
       item.appendChild(UI.el('span', 'ticker-cta', 'View →'));
       items.appendChild(item);
     });
@@ -370,8 +370,7 @@
     let chipLabel = null;
     if ((isLive || isFinal) && ls && !ins.active) chipLabel = MLB.inningLabel(ls, status);
     if (ins.disrupted) {
-      const label = ins.status.reason && !new RegExp(ins.status.reason.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(status.detailedState)
-        ? `${status.detailedState}: ${ins.status.reason}` : status.detailedState;
+      const label = Delays.statusLabel(ins.status);
       head.appendChild(UI.kindChip(ins.status.kind, label));
     } else {
       head.appendChild(UI.statusChip(status, chipLabel));

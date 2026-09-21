@@ -26,7 +26,6 @@
   };
 
   function $(sel) { return document.querySelector(sel); }
-  function escapeRe(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
   /* ------------------------------------------------------------------ load */
 
@@ -141,8 +140,7 @@
     const h = MLB.scoreOf(g, 'home');
     center.appendChild(UI.el('div', 'big-score', a != null && h != null ? `${a} – ${h}` : MLB.startLabel(g)));
     if (ins.disrupted) {
-      const label = ins.status.reason && !new RegExp(escapeRe(ins.status.reason), 'i').test(g.status.detailedState) ? `${g.status.detailedState}: ${ins.status.reason}` : g.status.detailedState;
-      center.appendChild(UI.kindChip(ins.status.kind, label));
+      center.appendChild(UI.kindChip(ins.status.kind, Delays.statusLabel(ins.status)));
     } else {
       center.appendChild(UI.statusChip(g.status, g.linescore && g.status.abstractGameState !== 'Preview' ? MLB.inningLabel(g.linescore, g.status) : null));
     }
@@ -303,7 +301,11 @@
         tl.forEach((seg) => {
           const meta = Delays.KIND_META[seg.kind] || Delays.KIND_META.delayed;
           const where = seg.inning != null && seg.kind !== 'delayed-start' ? ` — ${seg.halfInning === 'top' ? 'Top' : 'Bot'} ${seg.inning}` : '';
-          card.appendChild(UI.el('p', 'feed-reason', `${meta.label}${seg.reason ? `: ${seg.reason}` : ''}${where}${seg.open ? ` — ongoing since ${MLB.localTime(seg.startTime)}` : seg.minutes != null ? ` (${MLB.fmtMinutes(seg.minutes)})` : ''}`));
+          const dur = seg.open ? ` — ongoing since ${MLB.localTime(seg.startTime)}`
+            : seg.minutes == null ? ''
+            : seg.kind === 'delayed-start' ? ` (advisory posted ${MLB.fmtMinutes(seg.minutes)} before play resumed; official figure = first pitch − scheduled start)`
+            : ` (${MLB.fmtMinutes(seg.minutes)})`;
+          card.appendChild(UI.el('p', 'feed-reason', `${meta.label}${seg.reason ? `: ${seg.reason}` : ''}${where}${dur}`));
           card.appendChild(timelineList(seg));
         });
       } else if (ins.hadDelay) {

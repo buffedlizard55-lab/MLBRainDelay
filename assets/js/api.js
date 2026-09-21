@@ -66,11 +66,12 @@ const MLB = (() => {
       if (signal) signal.addEventListener('abort', onAbort, { once: true });
       const timer = setTimeout(() => ctrl.abort(), timeout);
       try {
-        const res = await fetch(url, {
-          signal: ctrl.signal,
-          cache,
-          headers: { Accept: accept },
-        });
+        // `accept: null` sends NO Accept header at all (the browser default
+        // `*/*`) — api.weather.gov negotiates on Accept and must not receive
+        // the string "null".
+        const init = { signal: ctrl.signal, cache };
+        if (accept) init.headers = { Accept: accept };
+        const res = await fetch(url, init);
         if (!res.ok) {
           if (res.status === 429 && rateLimitShared) lastRateLimitedAt = Date.now();
           const err = new Error(`HTTP ${res.status} for ${url}`);

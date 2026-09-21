@@ -39,12 +39,22 @@
 'use strict';
 
 const Delays = (() => {
+  /* Second letter of statusCode -> reason, for the P/I/D/C/O/F/T/U families.
+   * Verified against GET /api/v1/gameStatus on 2026-09-21 (full registry). */
   const REASON_BY_CODE = {
     R: 'Rain', S: 'Snow', G: 'Wet Grounds', V: 'Venue', F: 'Fog', C: 'Cold',
     D: 'Air Quality', B: 'Wind', I: 'Inclement Weather', P: 'Power', Y: 'Ceremony',
     L: 'Lightning', E: 'Emergency', 9: 'COVID-19', A: 'Tragedy', M: 'Mercy', O: null,
     Z: 'About to Resume', T: 'Tiebreaker', H: 'Instant Replay', W: 'Warmup', U: 'Appeal Upheld',
   };
+  /* Forfeits (Q… / R… codes) use their OWN letter table — "QR" is
+   * "Forfeit: Rule", not Rain (verified 2026-09-21). */
+  const FORFEIT_REASON_BY_CODE = {
+    K: 'Delay', X: 'Appear', Q: 'Lineup', J: 'Ejection', I: 'Ineligible',
+    N: 'Refusal', V: 'Unplayable', R: 'Rule', O: null,
+  };
+  /* Codes whose second letter is a game-state qualifier, not a reason. */
+  const NON_REASON_WORDS = new Set(['About to Resume', 'Tiebreaker', 'Instant Replay', 'Warmup', 'Review', 'Tied', 'Tied (won in tiebreaker)']);
 
   const WEATHER_REASONS = new Set([
     'Rain', 'Snow', 'Wet Grounds', 'Fog', 'Cold', 'Wind', 'Inclement Weather', 'Lightning',
@@ -101,56 +111,109 @@ const Delays = (() => {
     const abstract = String(s.abstractGameState || '');
     const flags = [];
 
-    let kind;
-    if (/^Delayed Start/i.test(detailed) || (coded === 'P' && code.length === 2 && code[1] !== 'W')) kind = 'delayed-start';
-    else if (/^Delayed: About to Resume/i.test(detailed) || code === 'IZ') kind = 'about-to-resume';
-    else if (/^Delayed/i.test(detailed) || (coded === 'I' && code.length === 2 && code[1] !== 'H')) kind = 'delayed';
-    else if (/^Postponed/i.test(detailed) || coded === 'D') kind = 'postponed';
-    else if (/^Suspended: About to Resume/i.test(detailed) || code === 'UZ') kind = 'suspended-about-to-resume';
-    else if (/^Suspended/i.test(detailed) || coded === 'T' || coded === 'U') kind = 'suspended';
-    else if (/^Cancell?ed/i.test(detailed) || coded === 'C') kind = 'cancelled';
-    else if (/^Completed Early/i.test(detailed) || ((coded === 'O' || coded === 'F') && code.length === 2 && !['T', 'W'].includes(code[1]))) kind = 'completed-early';
-    else if (/^Forfeit/i.test(detailed) || coded === 'Q' || coded === 'R') kind = 'forfeit';
-    else if (coded === 'M' || coded === 'N' || code === 'IH' || /challenge|review|instant replay/i.test(detailed)) kind = 'review';
-    else if (abstract === 'Final' || coded === 'F' || coded === 'O') kind = 'final';
-    else if (/^Warmup/i.test(detailed) || code === 'PW') kind = 'warmup';
-    else if (/^In Progress/i.test(detailed) || coded === 'I') kind = 'live';
-    else if (/^Pre-?Game/i.test(detailed)) kind = 'pregame';
-    else if (/^Scheduled/i.test(detailed) || coded === 'S' || abstract === 'Preview') kind = 'scheduled';
-    else kind = 'unknown';
+    /* 1. The words win: detailedState is what MLB.com prints. */
+    let kind = null;
+    if (detailed) {
+      if (/^Delayed Start/i.test(detailed)) kind = 'delayed-start';
+      else if (/^Delayed: About to Resume/i.test(detailed)) kind = 'about-to-resume';
+      else if (/^Delayed/i.test(detailed)) kind = 'delayed';
+      else if (/^Postponed/i.test(detailed)) kind = 'postponed';
+      else if (/^Suspended: About to Resume/i.test(detailed)) kind = 'suspended-about-to-resume';
+      else if (/^Suspended/i.test(detailed)) kind = 'suspended';
+      else if (/^Cancell?ed/i.test(detailed)) kind = 'cancelled';
+      else if (/^Completed Early/i.test(detailed)) kind = 'completed-early';
+      else if (/^Forfeit/i.test(detailed)) kind = 'forfeit';
+      else if (/challenge|review|instant replay/i.test(detailed)) kind = 'review';
+      else if (/^(Final|Game Over)/i.test(detailed)) kind = 'final';
+      else if (/^Warmup/i.test(detailed)) kind = 'warmup';
+      else if (/^In Progress/i.test(detailed)) kind = 'live';
+      else if (/^Pre-?Game/i.test(detailed)) kind = 'pregame';
+      else if (/^Scheduled/i.test(detailed)) kind = 'scheduled'; // incl. "Scheduled: COVID-19" (T9)
+    }
+    /* 2. Otherwise the letters (statusCode = state letter + qualifier). */
+    if (!kind) {
+      if (coded === 'P' && code.length === 2 && code[1] !== 'W') kind = 'delayed-start';
+      else if (code === 'IZ') kind = 'about-to-resume';
+      else if (coded === 'I' && code.length === 2 && !['H', 'T'].includes(code[1])) kind = 'delayed';
+      else if (coded === 'D') kind = 'postponed';
+      else if (code === 'UZ') kind = 'suspended-about-to-resume';
+      else if (coded === 'T' || coded === 'U') kind = 'suspended';
+      else if (coded === 'C') kind = 'cancelled';
+      else if ((coded === 'O' || coded === 'F') && code.length === 2 && !['T', 'W'].includes(code[1])) kind = 'completed-early';
+      else if (coded === 'Q' || coded === 'R') kind = 'forfeit';
+      else if (coded === 'M' || coded === 'N' || code === 'IH') kind = 'review';
+      else if (abstract === 'Final' || coded === 'F' || coded === 'O') kind = 'final';
+      else if (code === 'PW') kind = 'warmup';
+      else if (coded === 'I') kind = 'live';
+      else if (coded === 'S' || abstract === 'Preview') kind = 'scheduled';
+      else kind = 'unknown';
+    }
 
-    // Reason: explicit field first, then the "X: <reason>" suffix, then the code letter.
+    // Reason: explicit field first, then the "X: <reason>" suffix, then the
+    // code letter. "About to Resume" / "Tiebreaker" / "Tied" are state
+    // qualifiers MLB puts in `reason` too — they are never a delay reason.
+    const resumeKind = kind === 'about-to-resume' || kind === 'suspended-about-to-resume';
     let reason = null;
     let reasonSource = null;
-    if (s.reason && String(s.reason).trim()) { reason = String(s.reason).trim(); reasonSource = 'status.reason'; }
-    const m = /^(?:Delayed Start|Delayed|Postponed|Suspended|Cancelled|Canceled|Completed Early|Forfeit):\s*(.+)$/i.exec(detailed);
+    const explicit = s.reason ? String(s.reason).trim() : '';
+    if (explicit && !NON_REASON_WORDS.has(explicit)) { reason = explicit; reasonSource = 'status.reason'; }
+    const m = /^(?:Delayed Start|Delayed|Postponed|Suspended|Cancelled|Canceled|Completed Early|Forfeit|Scheduled):\s*(.+)$/i.exec(detailed);
     const suffix = m ? m[1].trim() : null;
-    if (!reason && suffix && !/^About to Resume$/i.test(suffix)) { reason = suffix; reasonSource = 'detailedState'; }
+    if (!reason && suffix && !NON_REASON_WORDS.has(suffix)) { reason = suffix; reasonSource = 'detailedState'; }
     let codeReason = null;
-    if (code.length === 2 && DISRUPTION_KINDS.has(kind)) {
+    if (code.length === 2 && DISRUPTION_KINDS.has(kind) && !resumeKind) {
       const letter = code[1];
-      if (letter in REASON_BY_CODE) codeReason = REASON_BY_CODE[letter];
+      const table = kind === 'forfeit' ? FORFEIT_REASON_BY_CODE : REASON_BY_CODE;
+      if (letter in table) codeReason = table[letter];
       else flags.push({ code: 'unknown-reason-code', text: `Status code "${code}" carries an unrecognised reason letter "${letter}".` });
     }
-    if (!reason && codeReason && !['About to Resume', 'Tiebreaker'].includes(codeReason)) { reason = codeReason; reasonSource = 'statusCode'; }
-    if (reason && codeReason && codeReason !== reason && !['About to Resume'].includes(codeReason) && kind !== 'about-to-resume' && kind !== 'suspended-about-to-resume') {
+    if (codeReason && NON_REASON_WORDS.has(codeReason)) codeReason = null;
+    if (!reason && codeReason) { reason = codeReason; reasonSource = 'statusCode'; }
+    if (reason && codeReason && codeReason !== reason) {
       flags.push({ code: 'reason-conflict', text: `Reason "${reason}" (${reasonSource}) disagrees with status code ${code} (${codeReason}).` });
     }
-    if (DISRUPTION_KINDS.has(kind) && !reason && kind !== 'about-to-resume' && kind !== 'suspended-about-to-resume') {
+    const qualifierOnly = NON_REASON_WORDS.has(explicit) || (suffix && NON_REASON_WORDS.has(suffix));
+    if (DISRUPTION_KINDS.has(kind) && !reason && !resumeKind && !qualifierOnly) {
       flags.push({ code: 'reason-missing', text: `MLB reports "${detailed || kind}" without a reason.` });
     }
     // Cross-check the words against the letters.
-    if (kind === 'delayed' && coded && !['I', 'M', 'N'].includes(coded)) flags.push({ code: 'status-conflict', text: `detailedState "${detailed}" but codedGameState "${coded}".` });
-    if (kind === 'postponed' && coded && coded !== 'D') flags.push({ code: 'status-conflict', text: `detailedState "${detailed}" but codedGameState "${coded}".` });
-    if (kind === 'delayed-start' && coded && coded !== 'P') flags.push({ code: 'status-conflict', text: `detailedState "${detailed}" but codedGameState "${coded}".` });
+    const conflict = () => flags.push({ code: 'status-conflict', text: `detailedState "${detailed}" but codedGameState "${coded}".` });
+    if (coded) {
+      if ((kind === 'delayed' || kind === 'about-to-resume') && coded !== 'I') conflict();
+      if (kind === 'postponed' && coded !== 'D') conflict();
+      if (kind === 'delayed-start' && coded !== 'P') conflict();
+      if (kind === 'cancelled' && coded !== 'C') conflict();
+      if ((kind === 'suspended' || kind === 'suspended-about-to-resume') && !['T', 'U'].includes(coded)) conflict();
+      if (kind === 'forfeit' && !['Q', 'R'].includes(coded)) conflict();
+      if (kind === 'completed-early' && !['O', 'F'].includes(coded)) conflict();
+    }
 
     return {
       kind, reason, reasonSource, reasonClass: classifyReason(reason),
+      qualifier: qualifierOnly ? (NON_REASON_WORDS.has(explicit) ? explicit : suffix) : null,
       detailedState: detailed, statusCode: code, codedGameState: coded, abstractGameState: abstract,
       active: ACTIVE_KINDS.has(kind), disruption: DISRUPTION_KINDS.has(kind),
       isWeather: classifyReason(reason) !== 'other' && classifyReason(reason) !== 'none',
       flags,
     };
+  }
+
+  function escapeRe(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+  /**
+   * Human label for a parsed status: "<detailedState>: <reason>" when the
+   * reason is not already part of the state text ("Delayed Start: Rain" stays
+   * as is; "Delayed" + reason "Rain" → "Delayed: Rain"), plus any game-state
+   * qualifier MLB put in the reason field ("Delayed (Tiebreaker)"). Pure text,
+   * safe for any reason string (regex metacharacters are escaped).
+   */
+  function statusLabel(ps) {
+    if (!ps) return '';
+    const state = ps.detailedState || '';
+    let label = state;
+    if (ps.reason && !new RegExp(escapeRe(ps.reason), 'i').test(state)) label += `: ${ps.reason}`;
+    if (ps.qualifier && !new RegExp(escapeRe(ps.qualifier), 'i').test(label)) label += ` (${ps.qualifier})`;
+    return label;
   }
 
   /* ------------------------------------------------------------ reschedule */
@@ -462,8 +525,8 @@ const Delays = (() => {
   }
 
   return {
-    REASON_BY_CODE, WEATHER_REASONS, ACTIVE_KINDS, DISRUPTION_KINDS, KIND_META,
-    classifyReason, parseStatus, rescheduleInfo, inspectGame,
+    REASON_BY_CODE, FORFEIT_REASON_BY_CODE, WEATHER_REASONS, ACTIVE_KINDS, DISRUPTION_KINDS, KIND_META,
+    classifyReason, parseStatus, statusLabel, rescheduleInfo, inspectGame,
     isAdvisoryEvent, extractAdvisories, buildTimeline,
     parseBoxscoreInfo, crossCheck, weatherConsistencyFlags, diffStatuses,
     minutesBetween,
