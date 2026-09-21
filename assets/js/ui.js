@@ -72,21 +72,6 @@ const UI = (() => {
     return img;
   }
 
-  /** Player headshot <img> with graceful hide on error. */
-  function headshot(personId, name, cls) {
-    if (!personId) {
-      const placeholder = el('span', `headshot headshot-na ${cls || ''}`);
-      placeholder.title = name || 'player';
-      return placeholder;
-    }
-    const img = el('img', `headshot ${cls || ''}`);
-    img.alt = name || 'player';
-    img.loading = 'lazy';
-    img.src = MLB.headshotUrl(personId);
-    img.onerror = () => { img.remove(); };
-    return img;
-  }
-
   /* ------------------------------------------------------------ status chip */
 
   const STATUS_META = {
@@ -264,7 +249,7 @@ const UI = (() => {
 
   return {
     teamColor, el, esc, clear,
-    teamLogo, headshot, statusChip,
+    teamLogo, statusChip,
     countDots, diamond, basesFromRunners,
     fmtCountdown, fmtInnings, pct,
     riskChip, kindChip, flagList, sourceLinks,

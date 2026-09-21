@@ -422,9 +422,16 @@ const Weather = (() => {
   function cached(key, ttl) {
     const c = cache.get(key);
     if (!c) return null;
-    if (c.value !== undefined && Date.now() - c.at < ttl) return c;
-    if (c.error && Date.now() - c.errorAt < RETRY_AFTER_ERROR_MS) return c;
-    return null;
+    const valueFresh = c.value !== undefined && Date.now() - c.at < ttl;
+    const errorFresh = !!c.error && Date.now() - c.errorAt < RETRY_AFTER_ERROR_MS;
+    if (!valueFresh && !errorFresh) return null; // re-fetch
+    if (valueFresh) return c;
+    // The value is outside its TTL and a recent refresh failure is cached.
+    // Serve the old value (better than nothing) but mark it `stale` so the
+    // UI keeps printing the "last successful fetch" footnote on every render
+    // while the refresh stays down — not only on the call that failed.
+    if (c.value !== undefined) return { ...c, value: { ...c.value, stale: true } };
+    return c;
   }
 
   function remember(key, value) { cache.set(key, { at: Date.now(), value }); return value; }

@@ -185,6 +185,7 @@
       recordTransitions(nextCodes);
       state.games = games;
       games.forEach((g) => state.inspections.set(g.gamePk, Delays.inspectGame(g)));
+      renderClubLinks();
       render();
       await Promise.all([scanDelays(requestDate), refreshWeather(requestDate)]);
       if (requestDate !== state.dateStr) return;
@@ -402,15 +403,30 @@
     ];
   }
 
+  /** Weather source links for one game, de-duplicated by URL (the alerts
+   * JSON is reachable from both `sourceUrls` and the human-review links). */
   function wxLinks(wx) {
     if (!wx) return [];
     const out = [];
+    const seen = new Set();
+    const push = (l) => { if (l && l.url && !seen.has(l.url)) { seen.add(l.url); out.push(l); } };
     (wx.sourceUrls || []).forEach((u, i) => {
       const label = /\/points\//.test(u) ? 'NWS point JSON' : /forecast\/hourly/.test(u) ? 'NWS hourly JSON' : /alerts/.test(u) ? 'NWS alerts JSON' : /weather\.gc\.ca/.test(u) ? 'ECCC JSON' : /open-meteo/.test(u) ? 'Open-Meteo JSON' : `Source ${i + 1}`;
-      out.push({ label, url: u, kind: /open-meteo/.test(u) ? 'model' : 'gov' });
+      push({ label, url: u, kind: /open-meteo/.test(u) ? 'model' : 'gov' });
     });
-    (wx.links || []).forEach((l) => out.push({ label: l.label, url: l.url, kind: wx.provider === 'open-meteo' ? 'model' : 'gov' }));
+    (wx.links || []).forEach((l) => push({ label: l.label, url: l.url, kind: wx.provider === 'open-meteo' ? 'model' : 'gov' }));
     return out;
+  }
+
+  /** Fill the manual-review club links for the current slate (one per club). */
+  function renderClubLinks() {
+    const el = $('#club-links');
+    if (!el) return;
+    UI.clear(el);
+    if (typeof Clubs === 'undefined') return;
+    Clubs.newsLinks(state.games).forEach((l) => {
+      el.appendChild(UI.el('a', 'source-link', l.label, { href: l.url, target: '_blank', rel: 'noopener' }));
+    });
   }
 
   /** Build every feed row for the current state (pure over state). */
@@ -851,9 +867,11 @@
       body.appendChild(det);
     }
     const links = [];
-    if (a.url) links.push({ label: a.provider === 'eccc' ? 'ECCC alert' : 'NWS alert (JSON)', url: a.url, kind: 'gov' });
-    if (row.wx && row.wx.alertsUrl) links.push({ label: 'Alerts at ballpark (JSON)', url: row.wx.alertsUrl, kind: 'gov' });
-    (row.wx && row.wx.links ? row.wx.links : []).forEach((l) => links.push({ label: l.label, url: l.url, kind: 'gov' }));
+    const seenUrls = new Set();
+    const pushLink = (l) => { if (l && l.url && !seenUrls.has(l.url)) { seenUrls.add(l.url); links.push(l); } };
+    if (a.url) pushLink({ label: a.provider === 'eccc' ? 'ECCC alert' : 'NWS alert (JSON)', url: a.url, kind: 'gov' });
+    if (row.wx && row.wx.alertsUrl) pushLink({ label: 'Alerts at ballpark (JSON)', url: row.wx.alertsUrl, kind: 'gov' });
+    (row.wx && row.wx.links ? row.wx.links : []).forEach((l) => pushLink({ label: l.label, url: l.url, kind: 'gov' }));
     body.appendChild(UI.sourceLinks(links, 'Verify'));
   }
 
@@ -897,6 +915,7 @@
     state.seenRowIds = new Set();
     state.firstRender = true;
     state.lastWeatherAt = 0;
+    renderClubLinks(); // drop the previous date's club links immediately
   }
 
   function changeDate() { syncUrl(); updateDateLabel(); resetForDate(); load(); }

@@ -46,7 +46,31 @@ const Clubs = (() => {
     return out;
   }
 
-  return { SLUG_BY_TEAM_ID, slug, links, gameLinks };
+  /**
+   * One official club-news link per team in a list of games (de-duplicated
+   * by team id, in schedule order). The club's MLB.com news page is the
+   * official place where tarp / delay / first-pitch updates are posted —
+   * the human check point for anything the StatsAPI does not yet show.
+   */
+  function newsLinks(games) {
+    const seen = new Set();
+    const out = [];
+    (Array.isArray(games) ? games : []).forEach((g) => {
+      if (!g || !g.teams) return;
+      ['away', 'home'].forEach((side) => {
+        const t = g.teams[side] && g.teams[side].team;
+        const id = t && t.id;
+        const s = id != null ? slug(id) : null;
+        if (!s || seen.has(id)) return;
+        seen.add(id);
+        const name = (t && (t.teamName || t.name)) || s;
+        out.push({ label: `${name} news (MLB.com)`, url: `https://www.mlb.com/${s}/news` });
+      });
+    });
+    return out;
+  }
+
+  return { SLUG_BY_TEAM_ID, slug, links, gameLinks, newsLinks };
 })();
 
 if (typeof module !== 'undefined' && module.exports) module.exports = Clubs;

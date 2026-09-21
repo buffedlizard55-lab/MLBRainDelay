@@ -455,8 +455,10 @@
     card.appendChild(UI.sourceLinks(mlb, 'MLB'));
     if (state.wx) {
       const wxl = [];
-      (state.wx.sourceUrls || []).forEach((u) => wxl.push({ label: /\/points\//.test(u) ? 'NWS point JSON' : /forecast\/hourly/.test(u) ? 'NWS hourly forecast JSON' : /alerts/.test(u) ? 'NWS active alerts JSON' : /weather\.gc\.ca/.test(u) ? 'ECCC city-page JSON' : 'Open-Meteo JSON', url: u, kind: /open-meteo/.test(u) ? 'model' : 'gov' }));
-      (state.wx.links || []).forEach((l) => wxl.push({ label: l.label, url: l.url, kind: state.wx.provider === 'open-meteo' ? 'model' : 'gov' }));
+      const seen = new Set();
+      const push = (l) => { if (l && l.url && !seen.has(l.url)) { seen.add(l.url); wxl.push(l); } };
+      (state.wx.sourceUrls || []).forEach((u) => push({ label: /\/points\//.test(u) ? 'NWS point JSON' : /forecast\/hourly/.test(u) ? 'NWS hourly forecast JSON' : /alerts/.test(u) ? 'NWS active alerts JSON' : /weather\.gc\.ca/.test(u) ? 'ECCC city-page JSON' : 'Open-Meteo JSON', url: u, kind: /open-meteo/.test(u) ? 'model' : 'gov' }));
+      (state.wx.links || []).forEach((l) => push({ label: l.label, url: l.url, kind: state.wx.provider === 'open-meteo' ? 'model' : 'gov' }));
       const row = UI.sourceLinks(wxl, 'Weather');
       if (row) card.appendChild(row);
     }

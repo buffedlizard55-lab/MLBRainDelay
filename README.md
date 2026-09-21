@@ -32,6 +32,13 @@ resumed.
   - **observed transitions** — when the page itself sees a game flip to Delayed, resume,
     or get postponed between two polls it logs the moment (clearly labelled as seen by
     this browser, never as an official timestamp) and plays an optional chime.
+
+  The alert rows (DELAYED NOW / delay / postponed / observed) are produced **only from
+  official status and advisory data** — a game that MLB has not officially delayed,
+  postponed or suspended never appears as a delay row, whatever the forecast says.
+  Weather forecasts are shown for **every** game, in the separate forecast-row category;
+  a non-weather delay (power, injury) still appears — it genuinely delayed the game —
+  but is flagged `(non-weather)`, never hidden.
 - **Game view** (`game.html`) — one game: header, linescore, an **Official delay status**
   panel (MLB `delayDurationMinutes`, scheduled start vs. actual first pitch, status
   history, advisory timeline, box-score cross-check), a **Weather at the ballpark**
@@ -146,17 +153,20 @@ Open <http://localhost:8000>. The offline, network-free checks:
 
 ```bash
 for f in assets/js/*.js; do node --check "$f"; done
-node tools/delays-test.mjs    # status registry, advisories, timeline, box score, cross-checks, transitions
-node tools/weather-test.mjs   # NWS / ECCC / Open-Meteo normalisation, alert classes, risk rules, provider chain
-node tools/render-test.mjs    # scoreboard + delay feed + game page rendered against captured payloads
+node tools/delays-test.mjs    # 26 — status registry, advisories, timeline, box score, cross-checks, transitions
+node tools/weather-test.mjs   # 24 — NWS / ECCC / Open-Meteo normalisation, alert classes, risk rules, provider chain
+node tools/render-test.mjs    #  6 — scoreboard + delay feed + game page rendered against captured payloads
 ```
 
 ## Deploy to GitHub Pages
 
 The site is 100 % static (repo root = site root). This repo is already published from
 `main` / `(root)` at <https://buffedlizard55-lab.github.io/MLBRainDelay/>; every merge
-to `main` republishes within about a minute. To enable Actions-based deploys or CI
-instead, copy `docs/workflows/*.yml` to `.github/workflows/`.
+to `main` republishes within about a minute. The offline test suite is enabled as CI in
+`.github/workflows/smoke.yml` (every push, pull request and nightly 04:17 UTC).
+`docs/workflows/pages.yml` remains optional — copying it to `.github/workflows/`
+would switch deploys to the Actions pipeline (the two should not run at the same
+time).
 
 ## Notes & etiquette
 

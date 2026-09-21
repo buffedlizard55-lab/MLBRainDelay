@@ -250,6 +250,16 @@ await test('renders every game with a weather strip, delay ticker, delay/forecas
   const flaggedCards = document.querySelectorAll('.game-card');
   assert.equal(flaggedCards.length, 1);
   assert.match(flaggedCards[0].textContent, /TBD/);
+  // A filter whose tab vanished (flag count drops to 0) must reset to 'all'
+  // BEFORE the list renders: every card visible, All tab active, no Flagged tab.
+  const g2 = page.ctx.Scoreboard._games().find((x) => x.gamePk === 900003);
+  g2.status.startTimeTBD = false;
+  page.ctx.Scoreboard._inspections.set(900003, page.get('Delays').inspectGame(g2));
+  page.ctx.Scoreboard.setFilter('flags');
+  assert.equal(document.querySelectorAll('.game-card').length, 7, 'vanished tab resets the filter before the card list renders');
+  const tabLabels = document.querySelectorAll('.tab').map((t) => t.textContent);
+  assert.ok(!tabLabels.some((t) => /Flagged/.test(t)), 'empty flag tab is not rendered');
+  assert.match(document.querySelector('.tab-on').textContent, /^All/, 'All tab is active again');
 });
 
 /* ------------------------------------------------------------ delay feed */
@@ -288,6 +298,21 @@ await test('feed builds forecast / delay / postponed / alert rows with timelines
   assert.doesNotMatch(text, /Beach Hazards Statement/, 'ignored products are not delay-feed rows');
   // every row has source links; government links present on weather rows
   rows.forEach((r) => assert.ok(r.querySelector('.source-links'), `row without sources: ${r.textContent.slice(0, 80)}`));
+  // no URL appears twice inside one row's verify links (the alerts JSON used to be listed twice)
+  rows.forEach((r) => {
+    const hrefs = r.querySelectorAll('.source-link').map((a) => a.href);
+    assert.equal(new Set(hrefs).size, hrefs.length, `duplicate source links in row: ${[...new Set(hrefs)].filter((u) => hrefs.filter((x) => x === u).length > 1).join(' | ')}`);
+  });
+  assert.ok(document.querySelectorAll('.source-link-gov').length > 0);
+  // manual-review club links: one per club on the slate (12 teams here), official MLB.com URLs only
+  const clubWrap = document.querySelector('#club-links');
+  assert.ok(clubWrap, 'club-links container present');
+  const clubLinks = clubWrap.querySelectorAll('.source-link');
+  assert.equal(clubLinks.length, 12, `one club-news link per club: ${clubLinks.length}`);
+  const clubHrefs = [...clubLinks].map((a) => a.href);
+  assert.ok(clubHrefs.includes('https://www.mlb.com/whitesox/news'), 'CWS club news link');
+  assert.ok(clubHrefs.includes('https://www.mlb.com/orioles/news'), 'BAL club news link (live delayed game)');
+  assert.ok(clubHrefs.every((u) => /^https:\/\/www\.mlb\.com\/[a-z]+\/news$/.test(u)), 'club links are official MLB.com club-news pages');
   assert.ok(document.querySelectorAll('.source-link-gov').length > 0);
   assert.ok(document.querySelectorAll('.source-link').some((a) => /statsapi\.mlb\.com\/api\/v1\/game\/824546\/playByPlay/.test(a.href)));
   assert.ok(document.querySelectorAll('.source-link').some((a) => /api\.weather\.gov\/alerts\/urn:oid/.test(a.href)), 'alert row links the official alert URL');
@@ -394,6 +419,7 @@ await test('game page renders official delay panel, timeline, box-score cross-ch
   assert.ok(document.querySelector('.wx-table'), 'hourly table rendered');
   assert.ok(document.querySelector('.linescore-table'), 'linescore rendered');
   const links = document.querySelectorAll('.source-link').map((a) => a.href);
+  assert.equal(new Set(links).size, links.length, 'no source URL listed twice (alerts JSON used to appear twice)');
   assert.ok(links.some((u) => u === 'https://www.mlb.com/gameday/824546'));
   assert.ok(links.some((u) => /api\/v1\/game\/824546\/playByPlay$/.test(u)));
   assert.ok(links.some((u) => /api\/v1\/game\/824546\/boxscore$/.test(u)));
