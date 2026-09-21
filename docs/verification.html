@@ -77,9 +77,9 @@
 </table></div>
 <h2 id="7-test-evidence-pass-1">7. Test evidence (Pass 1)</h2>
 <pre><code>$ for f in assets/js/*.js; do node --check "$f"; done      # clean
-$ node tools/delays-test.mjs     # 25 passed
-$ node tools/weather-test.mjs    # 22 passed
-$ node tools/render-test.mjs     #  5 passed (scoreboard, delay feed ×2, game page ×2)</code></pre>
+$ node tools/delays-test.mjs     # 25 passed  (26 after Pass 2)
+$ node tools/weather-test.mjs    # 22 passed  (23 after Pass 2)
+$ node tools/render-test.mjs     #  5 passed  (6 after Pass 2: scoreboard, delay feed ×3, game page ×2)</code></pre>
 <p>Bugs found and fixed by the tests during Pass 1: (1) NWS alert links pointed at the bare URN instead of the <code>https://api.weather.gov/alerts/…</code> URL; (2) a <code>mound_visit</code> event with a loose <code>event</code> label could be mistaken for an advisory — <code>eventType</code> is now authoritative; (3) TBD start times were rendered as a fake clock time on all three pages; (4) <code>window.X</code> lookups broke when the scripts run outside a browser global (tests) — replaced with <code>typeof X</code> guards.</p>
 <h2 id="8-pass-2-review-findings-bugs-edge-cases-wrong-assumptions">8. Pass 2 — review findings (bugs, edge cases, wrong assumptions)</h2>
 <pre><code>$ for f in assets/js/*.js; do node --check "$f"; done      # clean

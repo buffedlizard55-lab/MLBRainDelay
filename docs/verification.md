@@ -103,9 +103,9 @@ environment and is therefore surfaced as a flag or a footnote in the UI.
 
 ```
 $ for f in assets/js/*.js; do node --check "$f"; done      # clean
-$ node tools/delays-test.mjs     # 25 passed
-$ node tools/weather-test.mjs    # 22 passed
-$ node tools/render-test.mjs     #  5 passed (scoreboard, delay feed ×2, game page ×2)
+$ node tools/delays-test.mjs     # 25 passed  (26 after Pass 2)
+$ node tools/weather-test.mjs    # 22 passed  (23 after Pass 2)
+$ node tools/render-test.mjs     #  5 passed  (6 after Pass 2: scoreboard, delay feed ×3, game page ×2)
 ```
 
 Bugs found and fixed by the tests during Pass 1: (1) NWS alert links pointed at the bare

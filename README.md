@@ -49,7 +49,7 @@ can be checked by hand in one click.
 
 | Fact on the page | Source (read as-is) | Verified against |
 |---|---|---|
-| Game status, `Delayed: Rain`, `Postponed`, reason | StatsAPI `schedule` `status.detailedState / statusCode / reason` | `GET /api/v1/gameStatus` registry (32 codes captured in `tools/fixtures/game-status-registry.json`) |
+| Game status, `Delayed: Rain`, `Postponed`, reason | StatsAPI `schedule` `status.detailedState / statusCode / reason` | `GET /api/v1/gameStatus` registry (all 210 codes captured verbatim in `tools/fixtures/game-status-registry.json`; every row is classified by the test suite) |
 | Official delay minutes | `gameInfo.delayDurationMinutes` (schedule `hydrate=gameInfo`, live feed) | live feed 824546 (`230`), 824381 (`125`), 822686 (`86`) |
 | First pitch vs. scheduled start | `gameInfo.firstPitch` − `gameDate` | 824546: 5:00 PM vs 12:10 PM local = +230 min = official minutes |
 | Delay timeline (start → resume, inning) | `playByPlay` `playEvents[].details.eventType == "game_advisory"` with `startTime`/`endTime` | 824546 (delayed start), 822686 (top-4th delay, "About to Resume", resume) |
