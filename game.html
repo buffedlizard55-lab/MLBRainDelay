@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MLB Rain Delay — Game</title>
+  <meta name="description" content="One MLB game: official status and delay timeline, MLB's game-time weather, the NWS / Environment Canada hourly forecast and active alerts at the ballpark, and links to every official source.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='%23fff' stroke='%232f81f7' stroke-width='6'/%3E%3Cpath d='M50 4 A46 46 0 0 1 96 50 M50 96 A46 46 0 0 1 4 50 M4 50 A46 46 0 0 1 50 4 M96 50 A46 46 0 0 1 50 96' stroke='%232f81f7' stroke-width='2.5' fill='none'/%3E%3Cpath d='M38 62 l-6 14 M50 62 l-6 14 M62 62 l-6 14' stroke='%2338bdf8' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body class="page-game">
+  <header class="topbar topbar-game">
+    <a class="btn btn-ghost" href="index.html">← Scoreboard</a>
+    <a class="btn btn-feed" href="delays.html" title="All-games delay feed">🌧 Delay Feed</a>
+    <div class="game-controls">
+      <button id="refresh-btn" class="btn">Refresh</button>
+      <span class="countdown" id="countdown"></span>
+    </div>
+  </header>
+
+  <div id="banner" class="banner"></div>
+  <div id="loading" class="loading-overlay"><div class="spinner"></div></div>
+
+  <main id="main" class="game-main">
+    <section class="game-header">
+      <div id="header-away" class="header-side"></div>
+      <div id="header-center" class="header-center"></div>
+      <div id="header-home" class="header-side"></div>
+    </section>
+    <div id="header-meta" class="header-meta"></div>
+    <div id="header-decisions" class="header-decisions"></div>
+
+    <section id="linescore-wrap" class="panel" style="display:none"></section>
+
+    <section id="delay-wrap" class="panel"></section>
+
+    <section id="weather-wrap" class="panel"></section>
+
+    <section id="sources-wrap" class="panel"></section>
+
+    <div id="status-line" class="status-line"></div>
+  </main>
+
+  <footer class="site-footer">
+    <p>
+      Unofficial fan project. Game data via the public MLB StatsAPI
+      (<a href="https://statsapi.mlb.com" target="_blank" rel="noopener">statsapi.mlb.com</a>);
+      forecasts and alerts via the National Weather Service
+      (<a href="https://api.weather.gov" target="_blank" rel="noopener">api.weather.gov</a>) or Environment and
+      Climate Change Canada (<a href="https://api.weather.gc.ca" target="_blank" rel="noopener">api.weather.gc.ca</a>).
+      Every figure on this page links to the JSON it was read from (Sources panel); how each one was
+      verified is on the <a href="docs/verification.html">verification page</a>.
+      Not affiliated with MLB, MLB Advanced Media, NOAA or ECCC.
+    </p>
+  </footer>
+
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/delays.js"></script>
+  <script src="assets/js/weather.js"></script>
+  <script src="assets/js/clubs.js"></script>
+  <script src="assets/js/game.js"></script>
+</body>
+</html>

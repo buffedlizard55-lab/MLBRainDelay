@@ -1,0 +1,38 @@
+name: Offline parser & render tests
+
+# Optional: copy this file to .github/workflows/smoke.yml to run the suite in
+# GitHub Actions on every push / PR and nightly. All three scripts are offline —
+# they run against captured, verified StatsAPI / NWS / ECCC payloads in
+# tools/fixtures/ — so they never depend on upstream availability or rate limits.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 4 * * *'
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Syntax-check every browser script
+        run: for f in assets/js/*.js; do node --check "$f"; done
+
+      - name: Validate official delay / postponement parsing (delays.js)
+        run: node tools/delays-test.mjs
+
+      - name: Validate weather providers, alert classification and risk rules (weather.js)
+        run: node tools/weather-test.mjs
+
+      - name: Render scoreboard, delay feed and game page against captured payloads
+        run: node tools/render-test.mjs

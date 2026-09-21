@@ -1,0 +1,21 @@
+{
+  "_source": "https://api.weather.gov/gridpoints/LOT/76,71/forecast/hourly",
+  "_verified": "2026-09-21 — period shape verbatim; the values below are a synthetic evening built to exercise the risk rules (a 62% thunderstorm hour inside a 7:10 PM CDT game window)",
+  "type": "Feature",
+  "properties": {
+    "units": "us",
+    "forecastGenerator": "HourlyForecastGenerator",
+    "generatedAt": "2026-09-20T21:05:00+00:00",
+    "updateTime": "2026-09-20T20:31:00+00:00",
+    "elevation": { "unitCode": "wmoUnit:m", "value": 180 },
+    "periods": [
+      { "number": 1, "name": "", "startTime": "2026-09-20T17:00:00-05:00", "endTime": "2026-09-20T18:00:00-05:00", "isDaytime": true, "temperature": 74, "temperatureUnit": "F", "probabilityOfPrecipitation": { "unitCode": "wmoUnit:percent", "value": 8 }, "dewpoint": { "unitCode": "wmoUnit:degC", "value": 17 }, "relativeHumidity": { "unitCode": "wmoUnit:percent", "value": 62 }, "windSpeed": "10 mph", "windDirection": "S", "icon": "", "shortForecast": "Mostly Cloudy", "detailedForecast": "" },
+      { "number": 2, "name": "", "startTime": "2026-09-20T18:00:00-05:00", "endTime": "2026-09-20T19:00:00-05:00", "isDaytime": true, "temperature": 72, "temperatureUnit": "F", "probabilityOfPrecipitation": { "unitCode": "wmoUnit:percent", "value": 24 }, "dewpoint": { "unitCode": "wmoUnit:degC", "value": 18 }, "relativeHumidity": { "unitCode": "wmoUnit:percent", "value": 70 }, "windSpeed": "12 mph", "windDirection": "SSW", "icon": "", "shortForecast": "Chance Showers And Thunderstorms", "detailedForecast": "" },
+      { "number": 3, "name": "", "startTime": "2026-09-20T19:00:00-05:00", "endTime": "2026-09-20T20:00:00-05:00", "isDaytime": false, "temperature": 70, "temperatureUnit": "F", "probabilityOfPrecipitation": { "unitCode": "wmoUnit:percent", "value": 62 }, "dewpoint": { "unitCode": "wmoUnit:degC", "value": 19 }, "relativeHumidity": { "unitCode": "wmoUnit:percent", "value": 80 }, "windSpeed": "15 mph", "windDirection": "SW", "icon": "", "shortForecast": "Showers And Thunderstorms Likely", "detailedForecast": "" },
+      { "number": 4, "name": "", "startTime": "2026-09-20T20:00:00-05:00", "endTime": "2026-09-20T21:00:00-05:00", "isDaytime": false, "temperature": 67, "temperatureUnit": "F", "probabilityOfPrecipitation": { "unitCode": "wmoUnit:percent", "value": 45 }, "dewpoint": { "unitCode": "wmoUnit:degC", "value": 18 }, "relativeHumidity": { "unitCode": "wmoUnit:percent", "value": 84 }, "windSpeed": "12 mph", "windDirection": "W", "icon": "", "shortForecast": "Chance Showers And Thunderstorms", "detailedForecast": "" },
+      { "number": 5, "name": "", "startTime": "2026-09-20T21:00:00-05:00", "endTime": "2026-09-20T22:00:00-05:00", "isDaytime": false, "temperature": 65, "temperatureUnit": "F", "probabilityOfPrecipitation": { "unitCode": "wmoUnit:percent", "value": 20 }, "dewpoint": { "unitCode": "wmoUnit:degC", "value": 17 }, "relativeHumidity": { "unitCode": "wmoUnit:percent", "value": 86 }, "windSpeed": "9 mph", "windDirection": "WNW", "icon": "", "shortForecast": "Slight Chance Rain Showers", "detailedForecast": "" },
+      { "number": 6, "name": "", "startTime": "2026-09-20T22:00:00-05:00", "endTime": "2026-09-20T23:00:00-05:00", "isDaytime": false, "temperature": 63, "temperatureUnit": "F", "probabilityOfPrecipitation": { "unitCode": "wmoUnit:percent", "value": 5 }, "dewpoint": { "unitCode": "wmoUnit:degC", "value": 16 }, "relativeHumidity": { "unitCode": "wmoUnit:percent", "value": 88 }, "windSpeed": "7 mph", "windDirection": "NW", "icon": "", "shortForecast": "Partly Cloudy", "detailedForecast": "" },
+      { "number": 7, "name": "", "startTime": "2026-09-20T23:00:00-05:00", "endTime": "2026-09-21T00:00:00-05:00", "isDaytime": false, "temperature": 61, "temperatureUnit": "F", "probabilityOfPrecipitation": { "unitCode": "wmoUnit:percent", "value": 2 }, "dewpoint": { "unitCode": "wmoUnit:degC", "value": 15 }, "relativeHumidity": { "unitCode": "wmoUnit:percent", "value": 89 }, "windSpeed": "6 mph", "windDirection": "NW", "icon": "", "shortForecast": "Mostly Clear", "detailedForecast": "" }
+    ]
+  }
+}

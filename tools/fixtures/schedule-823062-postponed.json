@@ -1,0 +1,45 @@
+{
+  "_source": "https://statsapi.mlb.com/api/v1/schedule?sportId=1&gamePk=823062&fields=dates,date,games,gamePk,gameDate,officialDate,status,abstractGameState,codedGameState,detailedState,statusCode,reason,rescheduleDate,rescheduleGameDate,rescheduledFrom,rescheduledFromDate,doubleHeader,description,teams,team,id,name,abbreviation",
+  "_verified": "2026-09-21 — the SAME gamePk is listed under both its original (postponed) date and its makeup date",
+  "dates": [
+    {
+      "date": "2026-05-05",
+      "games": [
+        {
+          "gamePk": 823062,
+          "gameDate": "2026-05-05T23:45:00Z",
+          "officialDate": "2026-07-07",
+          "status": { "abstractGameState": "Final", "codedGameState": "D", "detailedState": "Postponed", "statusCode": "DI", "reason": "Inclement Weather", "abstractGameCode": "F" },
+          "rescheduleDate": "2026-07-07T18:15:00Z",
+          "rescheduleGameDate": "2026-07-07",
+          "doubleHeader": "N",
+          "teams": {
+            "away": { "team": { "id": 158, "name": "Milwaukee Brewers", "abbreviation": "MIL" } },
+            "home": { "team": { "id": 138, "name": "St. Louis Cardinals", "abbreviation": "STL" } }
+          },
+          "venue": { "id": 2889, "name": "Busch Stadium", "location": { "city": "St. Louis", "stateAbbrev": "MO", "defaultCoordinates": { "latitude": 38.62256667, "longitude": -90.19286667 } }, "timeZone": { "id": "America/Chicago" }, "fieldInfo": { "roofType": "Open" } }
+        }
+      ]
+    },
+    {
+      "date": "2026-07-07",
+      "games": [
+        {
+          "gamePk": 823062,
+          "gameDate": "2026-07-07T18:15:00Z",
+          "officialDate": "2026-07-07",
+          "status": { "abstractGameState": "Final", "codedGameState": "F", "detailedState": "Final", "statusCode": "F", "abstractGameCode": "F" },
+          "rescheduledFrom": "2026-05-05T23:45:00Z",
+          "rescheduledFromDate": "2026-05-05",
+          "doubleHeader": "S",
+          "description": "Makeup of 5/5ppd",
+          "teams": {
+            "away": { "score": 4, "team": { "id": 158, "name": "Milwaukee Brewers", "abbreviation": "MIL" } },
+            "home": { "score": 2, "team": { "id": 138, "name": "St. Louis Cardinals", "abbreviation": "STL" } }
+          },
+          "venue": { "id": 2889, "name": "Busch Stadium", "location": { "city": "St. Louis", "stateAbbrev": "MO", "defaultCoordinates": { "latitude": 38.62256667, "longitude": -90.19286667 } }, "timeZone": { "id": "America/Chicago" }, "fieldInfo": { "roofType": "Open" } }
+        }
+      ]
+    }
+  ]
+}

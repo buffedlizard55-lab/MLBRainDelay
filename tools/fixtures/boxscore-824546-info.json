@@ -1,0 +1,15 @@
+{
+  "_source": "https://statsapi.mlb.com/api/v1/game/824546/boxscore?fields=info,label,value",
+  "_verified": "2026-09-21 (verbatim)",
+  "info": [
+    { "label": "WP", "value": "Madden; Richards, T." },
+    { "label": "Umpires", "value": "HP: Nate Tomlinson. 1B: Bruce Dreckman. 2B: Carlos Torres. 3B: Mark Wegner. " },
+    { "label": "Weather", "value": "65 degrees, Rain." },
+    { "label": "Wind", "value": "10 mph, L To R." },
+    { "label": "First pitch", "value": "5:00 PM." },
+    { "label": "T", "value": "2:50 (3:50 delay)." },
+    { "label": "Att", "value": "21,354." },
+    { "label": "Venue", "value": "Rate Field." },
+    { "label": "September 20, 2026" }
+  ]
+}

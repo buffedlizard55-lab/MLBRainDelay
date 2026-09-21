@@ -1,0 +1,47 @@
+{
+  "_source": "https://api.weather.gov/alerts/active?point=41.83,-87.6342",
+  "_verified": "2026-09-21 — feature/properties shape verbatim from a live response; the two alerts below are synthetic examples (one severe warning, one non-weather marine product) used to exercise the classifier",
+  "type": "FeatureCollection",
+  "title": "Current watches, warnings, and advisories for 41.83 N, 87.6342 W",
+  "updated": "2026-09-20T22:40:00+00:00",
+  "features": [
+    {
+      "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.example1",
+      "type": "Feature",
+      "properties": {
+        "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.example1",
+        "id": "urn:oid:2.49.0.1.840.0.example1",
+        "areaDesc": "Cook, IL; DuPage, IL",
+        "affectedZones": ["https://api.weather.gov/zones/county/ILC031"],
+        "sent": "2026-09-20T22:35:00-05:00", "effective": "2026-09-20T22:35:00-05:00", "onset": "2026-09-20T22:35:00-05:00", "expires": "2026-09-20T23:15:00-05:00", "ends": "2026-09-20T23:15:00-05:00",
+        "status": "Actual", "messageType": "Alert", "category": "Met",
+        "severity": "Severe", "certainty": "Observed", "urgency": "Immediate",
+        "event": "Severe Thunderstorm Warning",
+        "sender": "w-nws.webmaster@noaa.gov", "senderName": "NWS Chicago IL",
+        "headline": "Severe Thunderstorm Warning issued September 20 at 5:35PM CDT until September 20 at 6:15PM CDT by NWS Chicago IL",
+        "description": "The National Weather Service in Chicago has issued a Severe Thunderstorm Warning for...",
+        "instruction": "For your protection move to an interior room on the lowest floor of a building.",
+        "response": "Shelter",
+        "parameters": { "NWSheadline": ["SEVERE THUNDERSTORM WARNING"], "VTEC": ["/O.NEW.KLOT.SV.W.0099.260920T2235Z-260920T2315Z/"] }
+      }
+    },
+    {
+      "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.example2",
+      "type": "Feature",
+      "properties": {
+        "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.example2",
+        "id": "urn:oid:2.49.0.1.840.0.example2",
+        "areaDesc": "Northern Cook, IL",
+        "sent": "2026-09-20T10:00:00-05:00", "effective": "2026-09-20T10:00:00-05:00", "onset": "2026-09-20T10:00:00-05:00", "expires": "2026-09-21T04:00:00-05:00", "ends": "2026-09-21T04:00:00-05:00",
+        "status": "Actual", "messageType": "Alert", "category": "Met",
+        "severity": "Moderate", "certainty": "Likely", "urgency": "Expected",
+        "event": "Beach Hazards Statement",
+        "senderName": "NWS Chicago IL",
+        "headline": "Beach Hazards Statement issued September 20 at 5:00AM CDT until September 20 at 11:00PM CDT by NWS Chicago IL",
+        "description": "Dangerous swimming conditions expected.",
+        "instruction": "Stay out of the water.",
+        "response": "Avoid"
+      }
+    }
+  ]
+}
