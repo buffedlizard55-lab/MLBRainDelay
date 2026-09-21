@@ -591,10 +591,10 @@ const Weather = (() => {
 
   function coordsOf(venue) {
     const c = venue && venue.location && venue.location.defaultCoordinates;
-    if (!c || !isNum(Number(c.latitude)) || !isNum(Number(c.longitude))) return null;
+    if (!c || c.latitude == null || c.longitude == null || String(c.latitude).trim() === '' || String(c.longitude).trim() === '' || !isNum(Number(c.latitude)) || !isNum(Number(c.longitude))) return null;
     const lat = Number(c.latitude);
     const lon = Number(c.longitude);
-    if (!lat && !lon) return null;
+    if (Math.abs(lat) > 90 || Math.abs(lon) > 180 || (!lat && !lon)) return null;
     return { lat, lon };
   }
 

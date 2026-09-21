@@ -112,28 +112,26 @@ with the code and a plain-language explanation — it is never resolved silently
 
 ### Social-media / news scanning (what is automated and what is not)
 
-**Social platforms are not scanned.** Twitter/X, Facebook and Instagram have no
-keyless read API, and Reddit's JSON/RSS endpoints answer HTTP 403 to anonymous
-requests (verified 2026-09-21) — a static GitHub Page has no place to store API
-secrets, and none of those platforms are verifiable sources on their own.
+**Social platforms are not scanned.** No X/Twitter, Facebook, Instagram, Reddit,
+or reporter-account integration is configured. Availability depends on platform
+policies and authorized access; we do not claim that other public sources cannot exist.
+Never put API credentials in this static site.
 
-**Official news feeds ARE scanned, server-side.** The only machine-readable news
-feeds that are publicly readable without credentials are the official
-[MLB.com league RSS](https://www.mlb.com/feeds/news/rss.xml), the 30
-[club RSS feeds](https://www.mlb.com/{club}/feeds/news/rss.xml) and the
-[ESPN MLB RSS](https://www.espn.com/espn/rss/mlb/news) — all verified HTTP 200 on
-2026-09-21. The scheduled `news-scan` workflow runs `tools/news-scan.mjs` (in GitHub
-Actions, where outbound requests and a repo token exist) and writes
-`docs/news-report.json`: each headline that mentions delay/weather vocabulary,
-verbatim, with its article link, publication time and the words that matched — for a
-human to open and review. The scanner never asserts that a delay happened; it only
-surfaces headlines, and a failing feed is reported per-feed rather than skipped.
-The same transparent vocabulary and parser are unit-tested offline
-(`tools/news-test.mjs`, 11 assertions). The browser pages also link the places where
-official announcements are made — the MLB.com Gameday page, both clubs' official news
-pages, `@MLB` / `@MLB_PR`, the NWS forecast office and radar, the SPC convective
-outlook and Environment Canada — under a **Manual review** heading, so a human can
-check social chatter against the official record in one click.
+**Written reports are displayed on [the delay feed](delays.html).** The scanner
+requests MLB league / all 30 club RSS feeds and ESPN MLB RSS every 15 minutes in
+GitHub Actions. Deployment and upstream publishing latency mean this is not a
+real-time guarantee. The Pages artifact includes `docs/news-report.json`; reports
+are not committed back to main. The inbox refreshes once a minute, de-duplicates
+article URLs, labels old/missing timestamps, and displays feed failures and stale
+snapshots. ESPN is independent reporting, not a team announcement.
+
+Headlines remain review candidates across all dates, **not verified game-specific
+restart reports**. No automated game/date/doubleheader matching or reliable extraction
+of announced restart times is implemented. The app explicitly says when a restart
+is not confirmed. Scheduled first pitch, forecast clearing times and play-event
+end timestamps must not be substituted for an announcement.
+
+See [the current audit and next-session plan](docs/implementation-review.md).
 
 ## Project structure
 
@@ -183,18 +181,14 @@ node tools/news-scan.mjs --out docs/news-report.json
 
 ## Deploy to GitHub Pages
 
-The site is 100 % static (repo root = site root). This repo is already published from
-`main` / `(root)` at <https://buffedlizard55-lab.github.io/MLBRainDelay/>; every merge
-to `main` republishes within about a minute. The offline test suite is enabled as CI in
-`.github/workflows/smoke.yml` (every push, pull request and nightly 04:17 UTC).
-`docs/workflows/pages.yml` remains optional — copying it to `.github/workflows/`
-would switch deploys to the Actions pipeline (the two should not run at the same
-time). The official-news scan is a scheduled GitHub Action
-(`.github/workflows/news-scan.yml`, every 6 h) that runs `tools/news-scan.mjs` in
-Actions — where outbound requests and a repo write token exist — and writes
-`docs/news-report.json` back into the repo; this is how the "scan the news
-organizations" requirement is met without putting a scraper or secrets in the
-static browser pages.
+The site is static at <https://buffedlizard55-lab.github.io/MLBRainDelay/>.
+`.github/workflows/news-scan.yml` builds and deploys Pages on main updates and every
+15 minutes, using Pages artifacts with read-only repository permissions. Pages must
+use the **GitHub Actions** build type. No bot pushes to main are required. The build
+runs all offline tests before scanning. A failed individual feed is published as an
+explicit source-health warning; a failed deployment leaves the previous snapshot,
+which the UI flags after 45 minutes. GitHub scheduled jobs can be delayed or disabled;
+this is not a continuous monitoring service.
 
 ## Notes & etiquette
 
@@ -218,8 +212,7 @@ static browser pages.
 ## Limitations
 
 See the end of [`docs/verification.md`](docs/verification.md) for the full list. In short:
-Twitter/X, Facebook, Instagram and Reddit are not scanned (no keyless read path — verified
-2026-09-21); official-news scanning is limited to the keyless MLB.com / ESPN RSS feeds and
+Twitter/X, Facebook, Instagram and Reddit are not integrated; official-news scanning is limited to the keyless MLB.com / ESPN RSS feeds and
 runs server-side (scheduled workflow), not in the browser; the browser pages themselves
 therefore link those channels for manual review but do not read them; browser CORS for the
 ECCC endpoint could not be exercised from the build sandbox; the Sacramento (Athletics),

@@ -1,3 +1,9 @@
+> **Current audit:** [implementation-review.md](implementation-review.md). This document
+> retains historical observations from prior sessions, not proof of current source
+> availability. Earlier claims that these are the only accessible feeds or that all
+> social APIs are universally inaccessible were too broad and are withdrawn.
+> The current deployment uses Pages artifacts, not commits to main; see the current audit.
+
 # Verification Report — every claim on the site vs. its official source
 
 **Date:** 2026-09-21 · **Sources:** `https://statsapi.mlb.com` (the public, CORS-open API

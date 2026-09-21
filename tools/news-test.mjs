@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 import {
-  parseRss, classifyItem, decodeEntities, stripCdata, stripTags, pubDateToEpoch, DELAY_WORDS, WEATHER_WORDS, FEEDS,
+  parseRss, classifyItem, decodeEntities, stripCdata, stripTags, pubDateToEpoch, DELAY_WORDS, WEATHER_WORDS, FEEDS, fetchFeed,
 } from './news-scan.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -57,8 +57,8 @@ await test('entity decoding and tag stripping', () => {
   assert.equal(stripTags('  <b>hi</b> there   '), 'hi there');
 });
 await test('pubDateToEpoch interprets RSS dates and passes through ISO-date fallback', () => {
-  // Same instant regardless of the trailing zone token — GMT/EST both collapse to the wall time.
-  assert.equal(pubDateToEpoch('Mon, 21 Sep 2026 20:49:36 GMT'), pubDateToEpoch('Mon, 21 Sep 2026 20:49:36 EST'));
+  // EST is five hours behind GMT; the source offset must be preserved.
+  assert.equal(pubDateToEpoch('Mon, 21 Sep 2026 20:49:36 EST') - pubDateToEpoch('Mon, 21 Sep 2026 20:49:36 GMT'), 5 * 3600000);
   const iso = Date.parse('2026-09-21T20:49:36Z');
   assert.equal(pubDateToEpoch('2026-09-21T20:49:36Z'), iso, 'ISO date falls through to Date.parse');
   assert.equal(pubDateToEpoch('not a date'), null);
@@ -118,6 +118,27 @@ await test('FEEDS covers the league feed, ESPN and all 30 club feeds with https 
   assert.deepEqual(DELAY_WORDS.filter((w) => ['delay', 'delayed', 'postpon', 'tarp', 'inclement', 'resume'].includes(w)), ['delay', 'delayed', 'postpon', 'tarp', 'resume', 'inclement']);
   assert.ok(WEATHER_WORDS.includes('rain') && WEATHER_WORDS.includes('thunder') && WEATHER_WORDS.includes('lightning'));
   assert.equal(WEATHER_WORDS.includes('weathers'), false, 'stem word list uses "weather" (matches "weathers" via substring)');
+});
+
+await test('malformed numeric entities do not crash the scanner', () => {
+  assert.equal(decodeEntities('&#99999999;'), '&#99999999;');
+});
+await test('word starts avoid training and window false positives', () => {
+  assert.equal(classifyItem({title: 'Spring training window opens'}).flagged, false);
+});
+await test('timestamps without explicit timezone are unknown', () => {
+  assert.equal(pubDateToEpoch('2026-09-21T18:00:00'), null);
+});
+await test('HTTP 200 HTML is a feed failure, not an empty healthy feed', async () => {
+  const previous = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => ({ok: true, status: 200, text: async () => '<html>Access denied</html>'});
+    const result = await fetchFeed(FEEDS[0]);
+    assert.equal(result.ok, false);
+    assert.match(result.error, /Unexpected feed format/);
+    globalThis.fetch = async () => ({ok: true, status: 200, text: async () => '<rss><channel><title>Empty</title></channel></rss>'});
+    assert.equal((await fetchFeed(FEEDS[0])).ok, true);
+  } finally { globalThis.fetch = previous; }
 });
 
 console.log(`\n${passed} passed${process.exitCode ? ' — FAILURES above' : ''}`);

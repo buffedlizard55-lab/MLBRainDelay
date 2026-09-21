@@ -280,6 +280,7 @@ await test('feed builds forecast / delay / postponed / alert rows with timelines
   assert.equal(byType('alert').length, 1, 'only weather-relevant alerts become rows (Beach Hazards is classified ignored), de-duplicated across seven games');
 
   const text = document.body.textContent;
+  assert.match(text, /Expected start \/ restart: not confirmed/);
   // 824546 timeline + official facts + box score cross-check
   assert.match(text, /Delayed Start: Rain/);
   assert.match(text, /Status Change - Delayed Start: Rain/);
@@ -436,6 +437,33 @@ await test('game page without a gamePk shows an error, fetches nothing', async (
   await page.flush();
   assert.match(page.document.querySelector('#banner').textContent, /No gamePk/);
   assert.equal(calls.length, before);
+});
+
+await test('written report inbox renders safe source-linked text and failure warnings', () => {
+  const page = loadPage(['assets/js/ui.js', 'assets/js/reports.js'], {ids: ['written-reports']});
+  const reports = page.get('Reports');
+  const root = page.document.querySelector('#written-reports');
+  reports.render({generatedAt: new Date().toISOString(), feeds: [{ok:false, name:'Synthetic unavailable feed', error:'HTTP 503'}], flagged:[{
+    title: '<script>not executed</script> Rain delay', author:'Synthetic reporter',
+    link:'https://www.mlb.com/news/test', feedUrl:'https://www.mlb.com/feeds/news/rss.xml', pubDate:null,
+  }]}, root);
+  assert.match(root.textContent, /coverage is incomplete/);
+  assert.match(root.textContent, /not matched to a game/);
+  assert.match(root.textContent, /Publication time unknown/);
+  assert.equal(root.querySelectorAll('script').length, 0);
+  assert.equal(root.querySelectorAll('a').length, 2);
+});
+
+await test('hidden delay-feed tab schedules an idle wait rather than a zero-delay loop', async () => {
+  const page = loadPage([...CORE, 'assets/js/delay-feed.js'], {search:'?date=2026-09-20', ids:['banner', 'feed-list', 'status-line', 'date-label', 'date-picker', 'active-strip', 'feed-stats', 'feed-tabs', 'countdown', 'live-dot', 'refresh-btn', 'sound-toggle-btn', 'back-link', 'club-links']});
+  page.document.fire('DOMContentLoaded');
+  await page.flush(); await page.flush();
+  const timer = page.timers.find(t => t.id === page.ctx.DelayFeed._state.pollTimer);
+  assert.ok(timer);
+  page.document.hidden = true;
+  timer.fn();
+  const next = page.timers.find(t => t.id === page.ctx.DelayFeed._state.pollTimer);
+  assert.equal(next.ms, 60000);
 });
 
 console.log(`\n${passed} passed${process.exitCode ? ' — FAILURES above' : ''}`);

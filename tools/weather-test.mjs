@@ -338,4 +338,12 @@ await test('outside both government services → Open-Meteo, always flagged non-
   assert.ok(wx.links.every((l) => /open-meteo/.test(l.url)));
 });
 
+await test('missing, empty and out-of-range venue coordinates never become a forecast location', () => {
+  const venue = (latitude, longitude) => ({location: {defaultCoordinates: {latitude, longitude}}});
+  for (const v of [venue(null, -76), venue('', -76), venue(91, 10), venue(30, 181), venue(0, 0)]) {
+    assert.equal(Weather.coordsOf(v), null);
+  }
+  assert.deepEqual(Weather.coordsOf(venue('39.28', '-76.62')), {lat:39.28, lon:-76.62});
+});
+
 console.log(`\n${passed} passed${process.exitCode ? ' — FAILURES above' : ''}`);
