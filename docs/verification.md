@@ -121,7 +121,7 @@ replaced with `typeof X` guards.
 $ for f in assets/js/*.js; do node --check "$f"; done      # clean
 $ node tools/delays-test.mjs     # 26 passed
 $ node tools/weather-test.mjs    # 23 passed
-$ node tools/render-test.mjs     #  5 passed
+$ node tools/render-test.mjs     #  6 passed
 ```
 
 | # | Finding | Fix |
@@ -134,6 +134,7 @@ $ node tools/render-test.mjs     #  5 passed
 | 6 | ECCC `warnings[]` was read with guessed field names. | Names taken from the published queryables schema (§3); unit test added. |
 | 7 | A delayed-start segment's advisory span (posted → warmup) was printed like an official duration. It is not: MLB's official figure is first pitch − scheduled start (`gameInfo.delayDurationMinutes`), which the pages also show. | Timeline text now says "advisory posted 4h 12m before play resumed"; the official minutes remain the headline number. |
 | 8 | README flag table missed `nws-hourly-failed`, `nws-alerts-failed`, `no-provider`, `stale`. | Added. |
+| 9 | Scoreboard: the first fast status sweep only recorded a baseline (compared against an empty map), so a flip between the hydrated load and that sweep was not applied until the following sweep. | Sweep signatures are now seeded from the hydrated schedule; a render test drives a real Delayed → In Progress sweep through both pages and asserts the stale reason, the ticker and the active strip all clear. |
 
 ---
 

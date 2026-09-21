@@ -903,6 +903,7 @@
 
   window.DelayFeed = {
     retry() { load(); },
+    _pollStatus: pollStatus, // test hook
     setFilter(f) { state.filter = f; render(); },
     prevDay() { shiftDate(-1); changeDate(); },
     nextDay() { shiftDate(1); changeDate(); },

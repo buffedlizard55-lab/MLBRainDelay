@@ -64,7 +64,6 @@ const Weather = (() => {
 
   /* ------------------------------------------------------------ small utils */
 
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const round4 = (n) => Math.round(Number(n) * 10000) / 10000;
   const isNum = (n) => typeof n === 'number' && !Number.isNaN(n);
 

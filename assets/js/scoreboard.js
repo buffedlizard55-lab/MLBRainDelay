@@ -75,6 +75,10 @@
       const nextGames = await MLB.getSchedule(requestDate);
       if (requestDate !== dateStr) return;
       games = nextGames;
+      // Seed the sweep signatures from the hydrated schedule so the very
+      // first status sweep can already detect a flip instead of only
+      // recording a baseline.
+      statusCodes = statusFlips(null, games).codes;
       games.forEach((g) => inspections.set(g.gamePk, Delays.inspectGame(g)));
       render();
       statusLine.textContent =
@@ -350,7 +354,6 @@
   }
 
   function gameCard(game) {
-    const gd = game.gameDate;
     const status = game.status;
     const isLive = status.abstractGameState === 'Live';
     const isFinal = status.abstractGameState === 'Final';
@@ -474,6 +477,8 @@
   window.Scoreboard = {
     retry() { load(); },
     _statusFlips: statusFlips,
+    _pollStatus: pollStatus, // test hook
+    _games: () => games, _inspections: inspections,
     setFilter(f) { filter = f; render(); },
     prevDay() { shiftDate(-1); syncUrl(); updateDateLabel(); resetForDate(); load(); },
     nextDay() { shiftDate(1); syncUrl(); updateDateLabel(); resetForDate(); load(); },

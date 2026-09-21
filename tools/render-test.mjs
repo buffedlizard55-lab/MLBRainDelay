@@ -104,7 +104,9 @@ async function fakeFetch(url) {
   let r = routes.get(url);
   if (!r) for (const [k, v] of routes) if (k.endsWith('*') && url.startsWith(k.slice(0, -1))) { r = v; break; }
   if (!r) return { ok: false, status: 599, json: async () => ({ error: `unrouted ${url}` }) };
-  return { ok: r.status < 400, status: r.status, json: async () => r.json };
+  // Fresh objects every call, like a real fetch — pages must never share
+  // state through the route table.
+  return { ok: r.status < 400, status: r.status, json: async () => JSON.parse(JSON.stringify(r.json)) };
 }
 
 /* --------------------------------------------------------- page loader */
@@ -134,7 +136,19 @@ function loadPage(scripts, { search = '', ids = [] } = {}) {
   vm.createContext(ctx);
   scripts.forEach((rel) => vm.runInContext(src(rel), ctx, { filename: rel }));
   const get = (name) => vm.runInContext(name, ctx); // top-level const lives in the context's lexical scope, not on `window`
-  return { ctx, document, timers, get, flush: async () => { for (let i = 0; i < 20; i += 1) await new Promise((r) => setImmediate(r)); } };
+  const flush = async () => { for (let i = 0; i < 20; i += 1) await new Promise((r) => setImmediate(r)); };
+  // Fire every pending short timer (sleep/backoff), never the long poll
+  // timers, so an initial load can settle deterministically.
+  const settle = async (maxMs = 5000) => {
+    for (let round = 0; round < 40; round += 1) {
+      await flush();
+      const due = timers.filter((t) => !t.cleared && !t.fired && t.ms <= maxMs);
+      if (!due.length) break;
+      due.forEach((t) => { t.fired = true; t.fn(); });
+    }
+    await flush();
+  };
+  return { ctx, document, timers, get, flush, settle };
 }
 
 let passed = 0;
@@ -309,6 +323,53 @@ await test('feed: observed transition rows appear when a status sweep flips a ga
   assert.ok(rows.length >= 1);
   assert.match(page.document.body.textContent, /Seen by this browser|Observed by this browser/);
   assert.ok(st.observed.length === before + 1);
+});
+
+await test('status sweep flip Delayed → In Progress REPLACES the status object (no stale reason) on both pages', async () => {
+  const SWEEP = 'https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2026-09-20&fields=*'; // prefix route, see above
+  const original = routes.get(SWEEP);
+  const flipped = JSON.parse(JSON.stringify(original.json));
+  flipped.dates[0].games.find((g) => g.gamePk === 900001).status =
+    { abstractGameState: 'Live', codedGameState: 'I', detailedState: 'In Progress', statusCode: 'I', abstractGameCode: 'L' };
+  try {
+    // delay feed
+    const feed = loadPage([...CORE, 'assets/js/delay-feed.js'], { search: '?date=2026-09-20', ids: ['banner', 'feed-list', 'status-line', 'date-label', 'date-picker', 'active-strip', 'feed-stats', 'feed-tabs', 'countdown', 'live-dot', 'refresh-btn', 'sound-toggle-btn', 'back-link', 'club-links'] });
+    feed.document.fire('DOMContentLoaded');
+    await feed.flush(); await feed.flush();
+    const st = feed.ctx.DelayFeed._state;
+    await feed.settle(); // initial load: schedule + pbp scan (incl. one retry back-off) + weather
+    assert.equal(st.inFlight, false, 'initial load finished');
+    assert.equal(st.inspections.get(900001).active, true, 'precondition: 900001 starts delayed');
+    routes.set(SWEEP, { status: 200, json: flipped });
+    await feed.ctx.DelayFeed._pollStatus();
+    await feed.flush();
+    const g = st.games.find((x) => x.gamePk === 900001);
+    assert.equal(g.status.detailedState, 'In Progress');
+    assert.equal(g.status.reason, undefined, 'stale reason must not survive the flip');
+    assert.equal(st.inspections.get(900001).active, false);
+    assert.equal(st.inspections.get(900001).status.reason, null);
+    const strip = feed.document.querySelector('#active-strip');
+    assert.ok(!/NYY @ BAL/.test(strip.textContent), 'active strip no longer lists the resumed game');
+    const resumed = st.observed.filter((o) => o.gamePk === 900001 && o.event === 'resumed');
+    assert.equal(resumed.length, 1, 'transition recorded as an observed "resumed" row');
+
+    // scoreboard
+    routes.set(SWEEP, original);
+    const sb = loadPage([...CORE, 'assets/js/scoreboard.js'], { search: '?date=2026-09-20', ids: ['game-list', 'banner', 'tabs', 'status-line', 'date-label', 'date-picker', 'feed-link'] });
+    sb.document.fire('DOMContentLoaded');
+    await sb.flush(); await sb.flush();
+    assert.ok(sb.document.querySelector('.delay-ticker'), 'precondition: ticker shows the active delay');
+    routes.set(SWEEP, { status: 200, json: flipped });
+    await sb.settle(); // fires the 1.5 s initial status sweep (and weather back-offs)
+    await sb.ctx.Scoreboard._pollStatus(); // and once more explicitly, in case the sweep raced the hydrated load
+    await sb.flush();
+    const sg = sb.ctx.Scoreboard._games().find((x) => x.gamePk === 900001);
+    assert.equal(sg.status.reason, undefined);
+    assert.equal(sb.ctx.Scoreboard._inspections.get(900001).active, false);
+    assert.ok(!sb.document.querySelector('.delay-ticker'), 'ticker disappears once no game is delayed');
+  } finally {
+    routes.set(SWEEP, original);
+  }
 });
 
 /* ------------------------------------------------------------ game page */
