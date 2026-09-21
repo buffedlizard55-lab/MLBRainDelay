@@ -82,13 +82,25 @@ environment and is therefore surfaced as a flag or a footnote in the UI.
 | Used only when neither government service covers the point (e.g. London, Mexico City if coordinates exist) | ✅ tested | Provider chain test. Always flagged `non-government-source`, chip labelled "Open-Meteo (model)". |
 | Hourly arrays `time (unixtime), precipitation_probability, weather_code, wind_speed_10m` | ✅ | Open-Meteo public schema; WMO code table used for the text. Not verified live from the sandbox — shape test only. |
 
-## 5. Manual-review links (social media / news)
+## 5. Manual-review links + official-news scan (social media / news)
 
 | Claim | Verified | Evidence |
 |---|---|---|
 | `https://www.mlb.com/gameday/{gamePk}` | ✅ | Pattern used by MLB.com; the reference site links it identically. |
 | Club news pages `https://www.mlb.com/{slug}/news` for all 30 clubs; slugs `dbacks`, `athletics`, `whitesox`, `redsox`, `bluejays`, `mariners`… | ✅ | `mlb.com/dbacks`, `mlb.com/athletics/news`, `mlb.com/whitesox/news` fetched live 2026-09-21 (HTTP 200). `teams?sportId=1&season=2026` for ids/abbreviations (Athletics id 133, D-backs abbreviation `AZ`). |
-| Curated official channels on `delays.html` (MLB.com news/scores, @MLB, @MLB_PR, r/baseball, weather.gov, SPC outlook, NWS radar, ECCC warnings) | ✅ links only | Public URLs; the site does **not** read them (see Limitations). |
+| Curated official channels on `delays.html` (MLB.com news/scores, @MLB, @MLB_PR, r/baseball, weather.gov, SPC outlook, NWS radar, ECCC warnings) | ✅ links only | Public URLs; the browser pages do **not** read them (see Limitations). |
+| `https://www.mlb.com/feeds/news/rss.xml` (league) and `https://www.mlb.com/{slug}/feeds/news/rss.xml` (all 30 clubs) are publicly readable without credentials | ✅ | Fetched 2026-09-21 during this pass: league, `orioles`, `bluejays`, `yankees`, `dodgers` all HTTP 200 with RSS 2.0 `<channel>`/`<item>` shape (title, link, pubDate, author, description, guid). |
+| `https://www.espn.com/espn/rss/mlb/news` is publicly readable without credentials | ✅ | Fetched 2026-09-21: HTTP 200 RSS 2.0. |
+| `https://www.reddit.com/r/baseball/search.json?…` and `/…/.rss` answer **HTTP 403** to anonymous requests | ✅ | Fetched 2026-09-21 via the page fetcher — both 403. |
+| Twitter/X, Facebook, Instagram have **no keyless read API** | ✅ | `api.twitter.com/2/tweets/…` requires OAuth; x.com HTML is not a feed. No keyless public JSON/RSS for Facebook/Instagram posts. (Not exercised via the CLI sandbox, which has no outbound network; this is the platform-API fact, not a live-response claim.) |
+| The news scanner (`tools/news-scan.mjs`) flags a headline only when its verbatim title/description contains a word from the documented `DELAY_WORDS` / `WEATHER_WORDS` lists, records the matched words and the article link, and reports per-feed failures | ✅ tested | `tools/news-test.mjs` (11 assertions): parsed channel/item fields verbatim from a captured structure, drops untitled items, decodes CDATA/entities, flags only matching items and never the plain ones, and asserts the 32-feed configuration (league + ESPN + 30 clubs). |
+
+The scanner is **server-side by design**: the browser cannot read these feeds
+(no CORS guarantee) and the social platforms have no anonymous read path, so the
+scheduled `.github/workflows/news-scan.yml` (GitHub Actions, every 6 h) runs it
+and writes `docs/news-report.json`. It never asserts that a delay happened —
+only that a headline mentions delay/weather vocabulary, with the link for a
+human to open.
 
 ## 6. Design parity with MLB-Live-PBP
 
@@ -97,7 +109,7 @@ environment and is therefore surfaced as a flag or a footnote in the UI.
 | Stylesheet, `ui.js`, `404.html`, `LICENSE`, `.gitignore`, `docs/workflows/pages.yml` copied from the reference (`6d61092`) | ✅ verbatim (+ appended weather/delay CSS block and four new UI helpers; the 404 title was corrected in Pass 4) |
 | Scoreboard → `index.html`, Game → `game.html`, all-games feed → `delays.html` (structure, classes and behaviour of `reviews.html`: banner, live strip, stats, tabs, chat-style rows, sound toggle, countdown, date picker) | ✅ |
 | Polling etiquette (hidden-tab pause, backoff on Final, 429 self-throttle) | ✅ retained in `api.js` and the three controllers |
-| Offline fixture-driven tests in `tools/`, workflows in `docs/workflows/` (smoke enabled in `.github/workflows/` since Pass 4) | ✅ 56 assertions across three suites (26 + 24 + 6) |
+| Offline fixture-driven tests in `tools/`, workflows in `docs/workflows/` (smoke enabled in `.github/workflows/` since Pass 4) | ✅ 67 assertions across four suites (26 + 24 + 11 + 6) |
 
 ## 7. Test evidence (Pass 1)
 
@@ -213,7 +225,7 @@ $ node tools/render-test.mjs     #  6 passed  (assertions extended)
 ### 9.4 CI
 
 `docs/workflows/smoke.yml` was enabled in `.github/workflows/smoke.yml`: the
-three offline suites (syntax check + 56 assertions) now run on every push,
+four offline suites (syntax check + 67 assertions) now run on every push,
 pull request and nightly (04:17 UTC). They are fully offline — captured,
 verified payloads in `tools/fixtures/` — so they never depend on upstream
 availability or rate limits. The Pages workflow (`docs/workflows/pages.yml`)
@@ -223,16 +235,55 @@ would double-deploy.
 
 ---
 
+## 10. Pass 5 — third session: official-news scan + live re-verification
+
+**Date:** 2026-09-21 (evening US time). Everything below was re-fetched live
+where the sandbox allows it, and the sandbox's limits are stated rather than
+worked around.
+
+### 10.1 Live re-verification (2026-09-21 evening slate)
+
+| Check | Source → value | Result |
+|---|---|---|
+| Today's slate carries a real active delay | `schedule?sportId=1&gamePk=824787&hydrate=weather,venue(location,timezone,fieldInfo),gameInfo` → TOR @ BAL, Camden Yards, `status.detailedState "Delayed Start"`, `statusCode "PI"`, `reason "Inclement Weather"`, `weather.condition "Rain"`, 39.283787,-76.621689, roofType Open | ✅ rendered by the deployed scoreboard + feed exactly ("⏸ ACTIVE DELAYS … Delayed Start: Inclement Weather") |
+| NWS point for Camden Yards | `api.weather.gov/points/39.2838,-76.6217` → grid `LWX 109,91`, radar `KLWX`, tz `America/New_York` | ✅ deployed feed links `points/39.2838,-76.6217` and `radar KLWX` |
+| NWS active alerts at Camden Yards | `alerts/active?point=39.2838,-76.6217` → `features: []` | ✅ "0 alerts" shown |
+| ECCC GeoMet works server-side | `api.weather.gc.ca/collections/citypageweather-realtime/items?f=json&lang=en&limit=1&bbox=…` → FeatureCollection `on-128` Toronto Island with currentConditions + forecastGroup (bilingual `{en,fr}`) | ✅ shape re-verified live |
+| MLB.com news RSS league feed | `mlb.com/feeds/news/rss.xml` → HTTP 200, `<channel><item>` RSS 2.0 | ✅ keyless-readable |
+| MLB.com club RSS feeds | `orioles/bluejays/yankees/dodgers/feeds/news/rss.xml` → HTTP 200, RSS 2.0 | ✅ keyless-readable |
+| ESPN MLB RSS | `espn.com/espn/rss/mlb/news` → HTTP 200, RSS 2.0 | ✅ keyless-readable |
+| Reddit anonymous | `reddit.com/r/baseball/search.json?…` and `/…/.rss` → HTTP **403** | ✅ blocked (as documented) |
+
+**Sandbox limits disclosed:** the build sandbox has no outbound network from
+the shell (`curl`/`node fetch` fail with "fetch failed"), so live-response
+checks above were made through the documentation/page fetcher, exactly as in
+past passes. `tools/news-scan.mjs` was therefore exercised offline only
+(parser + classifier unit tests) and with a full 32-feed run that correctly
+reported `feedsOk 0 / feedsFailed 32` (degradation path) in the sandbox; a
+real run happens in GitHub Actions, where egress exists.
+
+### 10.2 Findings and fixes this pass
+
+| # | Finding | Fix |
+|---|---|---|
+| 1 | The request asks to scan Twitter, Facebook, Instagram, Reddit "and any other news organizations". On live check, the social platforms have **no keyless read path** (Reddit JSON+RSS = HTTP 403 anonymous; X/Facebook/Instagram have no anonymous API). A static page cannot store credentials, so pretending to scan them would be a hallucination. | Documented the verified blocker; implemented the **only keyless official sources that exist** — a server-side scanner over the MLB.com league/club RSS + ESPN MLB RSS (`tools/news-scan.mjs`, 11 offline assertions) with a scheduled workflow (`.github/workflows/news-scan.yml`) that writes `docs/news-report.json` and flags feed outages. Nothing is asserted about a delay from a headline. |
+| 2 | Browser copy claimed "the site **never scrapes social media or news sites**", which implied there was no news path at all — now inaccurate. | `delays.html`, `game.js`, README and the verification report re-worded to state precisely what is read (official RSS, server-side) and what is not (social platforms). |
+| 3 | The news-scan workflow (which pushes into the repo) must not run with the anonymous bot's default permissions assumptions. | Workflow grants `contents: write` + `issues: write`, pushes only `docs/news-report.json`, and reports an outage as an issue rather than pretending success. |
+| 4 | The smoke CI did not cover the new scanner. | `tools/news-test.mjs` wired into both `.github/workflows/smoke.yml` and `docs/workflows/smoke.yml` (67 total assertions). |
+
+---
+
 ## Limitations and remaining work
 
-1. **No social-media / news scanning.** Twitter/X, Facebook and Instagram have no
-   keyless read API; Reddit's JSON endpoints block anonymous browser requests; news
-   sites have no structured, verifiable delay feed. A static GitHub Pages site has no
-   server, no secrets and no place to run a scraper. What *can* be done next: a scheduled
-   GitHub Action (server-side, with a stored token) that reads the official club and
-   `@MLB_PR` accounts and MLB.com news RSS, writes a small JSON file into the repo, and
-   the pages render it under a "Reported, not official" heading with the post URL as the
-   source. Until then the pages link to those channels for manual review.
+1. **Social-media scanning is not possible keyless, and is not done.** Twitter/X,
+   Facebook and Instagram have no keyless read API; Reddit's JSON/RSS endpoints answer
+   HTTP 403 to anonymous requests (verified 2026-09-21). Reading them would need paid
+   API credentials stored server-side. **Official-news scanning is done instead**:
+   the publicly readable MLB.com league/club RSS and ESPN MLB RSS feeds are scanned by
+   the scheduled `news-scan` workflow into `docs/news-report.json` (see §5). What remains
+   impossible from a storeless static page: the social feeds themselves, and any "post
+   text" that is not in a public RSS feed.
+2. **ECCC browser CORS unverified** (see §3 and §9.1). The *server* side of the
 2. **ECCC browser CORS unverified** (see §3 and §9.1). The *server* side of the
    exact code URL was verified live on 2026-09-21 (FeatureCollection with the
    documented shape). The remaining check is browser CORS from a user's machine

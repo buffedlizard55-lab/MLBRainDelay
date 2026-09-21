@@ -34,5 +34,8 @@ jobs:
       - name: Validate weather providers, alert classification and risk rules (weather.js)
         run: node tools/weather-test.mjs
 
+      - name: Validate the official-news RSS scanner (tools/news-scan.mjs)
+        run: node tools/news-test.mjs
+
       - name: Render scoreboard, delay feed and game page against captured payloads
         run: node tools/render-test.mjs

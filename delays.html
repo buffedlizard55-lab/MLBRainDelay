@@ -49,10 +49,17 @@
     <section class="manual-review">
       <h3>Manual review — official channels</h3>
       <p>
-        This site never scrapes social media or news sites (a static GitHub Page has no API keys and
-        those platforms block anonymous reads). Every fact above comes from the MLB StatsAPI, the U.S.
-        National Weather Service or Environment and Climate Change Canada, and every row links to the
-        exact payload it was read from. To confirm a delay against a human announcement, use the
+        Every fact above comes from the MLB StatsAPI, the U.S. National Weather Service or
+        Environment and Climate Change Canada, and every row links to the exact payload it was read
+        from. Social platforms (X/Twitter, Facebook, Instagram, Reddit) are not read by this static
+        page: they have no keyless read API, and Reddit's RSS/JSON endpoints answer HTTP 403 to
+        anonymous browser requests (verified 2026-09-21). The only machine-readable news feeds that
+        are publicly readable are the official MLB.com league and club RSS feeds and the ESPN MLB
+        RSS feed — a server-side scanner (the scheduled
+        <code>news-scan</code> workflow in
+        <a href="https://github.com/buffedlizard55-lab/MLBRainDelay" target="_blank" rel="noopener">this repo</a>)
+        lists their headlines that mention delay/weather vocabulary, with links, in
+        <a href="https://github.com/buffedlizard55-lab/MLBRainDelay/blob/main/docs/news-report.json" target="_blank" rel="noopener">docs/news-report.json</a>. To confirm a delay against a human announcement, use the
         club's official channels below — the teams' own accounts are the first place MLB delay,
         tarp and first-pitch updates are posted.
       </p>

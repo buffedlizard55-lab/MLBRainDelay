@@ -464,7 +464,7 @@
     }
     const clubs = (typeof Clubs !== 'undefined') ? Clubs.gameLinks(g) : [];
     if (clubs.length) card.appendChild(UI.sourceLinks(clubs, 'Clubs'));
-    card.appendChild(UI.el('p', 'feed-observed-note', 'Social-media and news feeds are not read by this site; the club pages above are the official places where tarp, delay and first-pitch announcements are posted.'));
+    card.appendChild(UI.el('p', 'feed-observed-note', 'Social-media platforms and their feeds are not read by this site (no keyless read path — verified 2026-09-21). The club pages above are the official places where tarp, delay and first-pitch announcements are posted; official MLB.com/ESPN news headlines that mention delay or weather, with links, are listed by the scheduled server-side scanner in docs/news-report.json.'));
     wrap.appendChild(card);
   }
 
