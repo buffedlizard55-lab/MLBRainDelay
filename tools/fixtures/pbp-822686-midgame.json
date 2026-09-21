@@ -1,0 +1,26 @@
+{
+  "_source": "https://statsapi.mlb.com/api/v1/game/822686/playByPlay?fields=allPlays,about,atBatIndex,inning,halfInning,isTopInning,startTime,endTime,isComplete,result,event,eventType,description,awayScore,homeScore,playEvents,index,isPitch,type,details",
+  "_verified": "2026-09-21 — mid-game delay (top 4th) between pitches; note the play's about.startTime (19:21:13Z) is LATER than the advisories inside it, plus an earlier non-weather 'Injury Delay.' advisory",
+  "allPlays": [
+    {
+      "result": { "type": "atBat", "event": "Strikeout", "eventType": "strikeout", "description": "Batter strikes out swinging.", "awayScore": 1, "homeScore": 0 },
+      "about": { "atBatIndex": 20, "halfInning": "bottom", "isTopInning": false, "inning": 3, "startTime": "2026-09-02T17:47:10Z", "endTime": "2026-09-02T17:52:40Z", "isComplete": true },
+      "playEvents": [
+        { "details": { "description": "Injury Delay.", "event": "Game Advisory", "eventType": "game_advisory" }, "index": 0, "startTime": "2026-09-02T17:48:59Z", "endTime": "2026-09-02T17:51:38Z", "isPitch": false, "type": "action" },
+        { "details": { "call": { "code": "S" }, "description": "Swinging Strike", "isStrike": true }, "index": 1, "startTime": "2026-09-02T17:52:20Z", "endTime": "2026-09-02T17:52:40Z", "isPitch": true, "type": "pitch" }
+      ]
+    },
+    {
+      "result": { "type": "atBat", "event": "Single", "eventType": "single", "description": "Batter singles on a line drive to center fielder.", "awayScore": 1, "homeScore": 0 },
+      "about": { "atBatIndex": 27, "halfInning": "top", "isTopInning": true, "inning": 4, "startTime": "2026-09-02T19:21:13Z", "endTime": "2026-09-02T19:22:30Z", "isComplete": true },
+      "playEvents": [
+        { "details": { "description": "Mound Visit.", "event": "Mound Visit", "eventType": "mound_visit" }, "index": 0, "startTime": "2026-09-02T17:55:40Z", "endTime": "2026-09-02T17:56:10Z", "isPitch": false, "type": "action" },
+        { "details": { "description": "Status Change - Delayed: Inclement Weather", "event": "Game Advisory", "eventType": "game_advisory" }, "index": 1, "startTime": "2026-09-02T17:56:10Z", "endTime": "2026-09-02T19:18:12Z", "isPitch": false, "type": "action" },
+        { "details": { "description": "Status Change - Delayed: About to Resume", "event": "Game Advisory", "eventType": "game_advisory" }, "index": 2, "startTime": "2026-09-02T19:18:12Z", "endTime": "2026-09-02T19:19:37Z", "isPitch": false, "type": "action" },
+        { "details": { "description": "Pitching Change: Reliever replaces Starter.", "event": "Pitching Substitution", "eventType": "pitching_substitution" }, "index": 3, "startTime": "2026-09-02T19:19:37Z", "endTime": "2026-09-02T19:20:54Z", "isPitch": false, "type": "action" },
+        { "details": { "description": "Status Change - In Progress", "event": "Game Advisory", "eventType": "game_advisory" }, "index": 4, "startTime": "2026-09-02T19:20:54Z", "endTime": "2026-09-02T19:21:13Z", "isPitch": false, "type": "action" },
+        { "details": { "call": { "code": "D" }, "description": "In play, no out", "isInPlay": true }, "index": 5, "startTime": "2026-09-02T19:22:10Z", "endTime": "2026-09-02T19:22:30Z", "isPitch": true, "type": "pitch" }
+      ]
+    }
+  ]
+}

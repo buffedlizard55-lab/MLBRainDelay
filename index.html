@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MLB Rain Delay — Live Weather Scoreboard</title>
+  <meta name="description" content="Live MLB scoreboard with official weather for every game: NWS / Environment Canada forecasts and alerts at each ballpark, roof status, official rain-delay, postponement and suspension status from the MLB StatsAPI, and irregularity flags for manual review.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='%23fff' stroke='%232f81f7' stroke-width='6'/%3E%3Cpath d='M50 4 A46 46 0 0 1 96 50 M50 96 A46 46 0 0 1 4 50 M4 50 A46 46 0 0 1 50 4 M96 50 A46 46 0 0 1 50 96' stroke='%232f81f7' stroke-width='2.5' fill='none'/%3E%3Cpath d='M38 62 l-6 14 M50 62 l-6 14 M62 62 l-6 14' stroke='%2338bdf8' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body class="page-scoreboard">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-ball">⚾</span>
+      <span>MLB Rain Delay</span>
+      <span class="brand-sub">scoreboard · weather · delays</span>
+    </div>
+    <a id="feed-link" class="btn btn-feed" href="delays.html" title="All-games delay feed: official delays, postponements, suspensions, forecasts and alerts">🌧 Delay Feed</a>
+    <div class="date-nav">
+      <button class="btn btn-ghost" onclick="Scoreboard.prevDay()" title="Previous day">←</button>
+      <input type="date" id="date-picker" onchange="Scoreboard.pickDate()" aria-label="Game date">
+      <button class="btn btn-ghost" onclick="Scoreboard.nextDay()" title="Next day">→</button>
+      <button class="btn" onclick="Scoreboard.today()">Today</button>
+    </div>
+    <div id="date-label" class="date-label"></div>
+  </header>
+
+  <div id="banner" class="banner"></div>
+  <nav id="tabs" class="tabs" aria-label="Filter games"></nav>
+
+  <main id="game-list" class="game-list"></main>
+
+  <div id="status-line" class="status-line"></div>
+
+  <footer class="site-footer">
+    <p>
+      Unofficial fan project. Game data via the public MLB StatsAPI
+      (<a href="https://statsapi.mlb.com" target="_blank" rel="noopener">statsapi.mlb.com</a>) —
+      the same feeds that power <a href="https://www.mlb.com" target="_blank" rel="noopener">MLB.com</a> Gameday —
+      including MLB's own per-game weather string, roof type, official delay minutes and
+      postponement / suspension status. Forecasts and alerts come from the U.S. National Weather
+      Service (<a href="https://api.weather.gov" target="_blank" rel="noopener">api.weather.gov</a>) at each
+      ballpark's coordinates, or Environment and Climate Change Canada
+      (<a href="https://api.weather.gc.ca" target="_blank" rel="noopener">api.weather.gc.ca</a>) where the NWS
+      has no coverage. Forecast-risk chips are a transparent rule over the official forecast, not a
+      prediction — the rules and every source URL are on the
+      <a href="docs/verification.html">verification page</a>. Anything the sources disagree on is
+      flagged 🚩 for manual review, never corrected or hidden.
+      Not affiliated with MLB, MLB Advanced Media, NOAA or ECCC.
+    </p>
+  </footer>
+
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/delays.js"></script>
+  <script src="assets/js/weather.js"></script>
+  <script src="assets/js/scoreboard.js"></script>
+</body>
+</html>

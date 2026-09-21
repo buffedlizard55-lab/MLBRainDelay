@@ -1,0 +1,96 @@
+{
+  "_source": "https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=2026-09-20&hydrate=team,linescore,weather,venue(location,timezone,fieldInfo),gameInfo,probablePitcher,decisions",
+  "_verified": "2026-09-21 (fields captured from live responses; team records/scores abbreviated to the fields the site reads)",
+  "dates": [
+    {
+      "date": "2026-09-20",
+      "games": [
+        {
+          "gamePk": 824546,
+          "gameType": "R",
+          "season": "2026",
+          "gameDate": "2026-09-20T18:10:00Z",
+          "officialDate": "2026-09-20",
+          "status": { "abstractGameState": "Final", "codedGameState": "F", "detailedState": "Final", "statusCode": "F", "startTimeTBD": false, "abstractGameCode": "F" },
+          "teams": {
+            "away": { "leagueRecord": { "wins": 86, "losses": 68 }, "score": 6, "team": { "id": 116, "name": "Detroit Tigers", "abbreviation": "DET", "teamName": "Tigers" }, "isWinner": true },
+            "home": { "leagueRecord": { "wins": 60, "losses": 94 }, "score": 3, "team": { "id": 145, "name": "Chicago White Sox", "abbreviation": "CWS", "teamName": "White Sox" }, "isWinner": false }
+          },
+          "venue": {
+            "id": 4, "name": "Rate Field",
+            "location": { "city": "Chicago", "stateAbbrev": "IL", "defaultCoordinates": { "latitude": 41.83, "longitude": -87.634167 } },
+            "timeZone": { "id": "America/Chicago", "offset": -5, "tz": "CDT" },
+            "fieldInfo": { "roofType": "Open" }
+          },
+          "weather": { "condition": "Rain", "temp": "65", "wind": "10 mph, L To R" },
+          "gameInfo": { "attendance": 21354, "firstPitch": "2026-09-20T22:00:00Z", "gameDurationMinutes": 170, "delayDurationMinutes": 230 },
+          "linescore": { "currentInning": 9, "currentInningOrdinal": "9th", "inningState": "Bottom", "innings": [], "teams": { "home": { "runs": 3 }, "away": { "runs": 6 } } },
+          "doubleHeader": "N", "gameNumber": 1, "seriesDescription": "Regular Season"
+        },
+        {
+          "gamePk": 824381,
+          "gameType": "R",
+          "season": "2026",
+          "gameDate": "2026-09-20T17:40:00Z",
+          "officialDate": "2026-09-20",
+          "status": { "abstractGameState": "Final", "codedGameState": "F", "detailedState": "Final", "statusCode": "F", "startTimeTBD": false, "abstractGameCode": "F" },
+          "teams": {
+            "away": { "leagueRecord": { "wins": 74, "losses": 80 }, "score": 0, "team": { "id": 133, "name": "Athletics", "abbreviation": "ATH", "teamName": "Athletics" }, "isWinner": false },
+            "home": { "leagueRecord": { "wins": 90, "losses": 64 }, "score": 1, "team": { "id": 114, "name": "Cleveland Guardians", "abbreviation": "CLE", "teamName": "Guardians" }, "isWinner": true }
+          },
+          "venue": {
+            "id": 5, "name": "Progressive Field",
+            "location": { "city": "Cleveland", "stateAbbrev": "OH", "defaultCoordinates": { "latitude": 41.495861, "longitude": -81.685255 } },
+            "timeZone": { "id": "America/New_York", "offset": -4, "tz": "EDT" },
+            "fieldInfo": { "roofType": "Open" }
+          },
+          "weather": { "condition": "Cloudy", "temp": "68", "wind": "12 mph, In From CF" },
+          "gameInfo": { "attendance": 25000, "firstPitch": "2026-09-20T19:45:00Z", "gameDurationMinutes": 134, "delayDurationMinutes": 125 },
+          "doubleHeader": "N", "gameNumber": 1, "seriesDescription": "Regular Season"
+        },
+        {
+          "gamePk": 822922,
+          "gameType": "R",
+          "season": "2026",
+          "gameDate": "2026-09-20T17:40:00Z",
+          "officialDate": "2026-09-20",
+          "status": { "abstractGameState": "Final", "codedGameState": "F", "detailedState": "Final", "statusCode": "F", "startTimeTBD": false, "abstractGameCode": "F" },
+          "teams": {
+            "away": { "leagueRecord": { "wins": 80, "losses": 74 }, "score": 2, "team": { "id": 111, "name": "Boston Red Sox", "abbreviation": "BOS", "teamName": "Red Sox" }, "isWinner": false },
+            "home": { "leagueRecord": { "wins": 95, "losses": 59 }, "score": 5, "team": { "id": 139, "name": "Tampa Bay Rays", "abbreviation": "TB", "teamName": "Rays" }, "isWinner": true }
+          },
+          "venue": {
+            "id": 12, "name": "Tropicana Field",
+            "location": { "city": "St. Petersburg", "stateAbbrev": "FL", "defaultCoordinates": { "latitude": 27.767778, "longitude": -82.6525 } },
+            "timeZone": { "id": "America/New_York", "offset": -4, "tz": "EDT" },
+            "fieldInfo": { "roofType": "Dome" }
+          },
+          "weather": { "condition": "Dome", "temp": "72", "wind": "0 mph, None" },
+          "gameInfo": { "attendance": 15000, "firstPitch": "2026-09-20T17:41:00Z", "gameDurationMinutes": 150 },
+          "doubleHeader": "N", "gameNumber": 1, "seriesDescription": "Regular Season"
+        },
+        {
+          "gamePk": 824139,
+          "gameType": "R",
+          "season": "2026",
+          "gameDate": "2026-09-20T18:10:00Z",
+          "officialDate": "2026-09-20",
+          "status": { "abstractGameState": "Final", "codedGameState": "F", "detailedState": "Final", "statusCode": "F", "startTimeTBD": false, "abstractGameCode": "F" },
+          "teams": {
+            "away": { "leagueRecord": { "wins": 70, "losses": 84 }, "score": 1, "team": { "id": 144, "name": "Atlanta Braves", "abbreviation": "ATL", "teamName": "Braves" }, "isWinner": false },
+            "home": { "leagueRecord": { "wins": 88, "losses": 66 }, "score": 4, "team": { "id": 117, "name": "Houston Astros", "abbreviation": "HOU", "teamName": "Astros" }, "isWinner": true }
+          },
+          "venue": {
+            "id": 2392, "name": "Daikin Park",
+            "location": { "city": "Houston", "stateAbbrev": "TX", "defaultCoordinates": { "latitude": 29.756967, "longitude": -95.355509 } },
+            "timeZone": { "id": "America/Chicago", "offset": -5, "tz": "CDT" },
+            "fieldInfo": { "roofType": "Retractable" }
+          },
+          "weather": { "condition": "Roof Closed", "temp": "73", "wind": "0 mph, None" },
+          "gameInfo": { "attendance": 30000, "firstPitch": "2026-09-20T18:11:00Z", "gameDurationMinutes": 160 },
+          "doubleHeader": "N", "gameNumber": 1, "seriesDescription": "Regular Season"
+        }
+      ]
+    }
+  ]
+}

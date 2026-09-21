@@ -1,0 +1,16 @@
+{
+  "_source": "https://statsapi.mlb.com/api/v1/game/824546/playByPlay?fields=allPlays,about,atBatIndex,inning,halfInning,isTopInning,startTime,endTime,isComplete,result,event,eventType,description,awayScore,homeScore,playEvents,index,isPitch,type,details",
+  "_verified": "2026-09-21 — pre-game delay: the status-change advisories sit in the FIRST play's playEvents (times as captured live)",
+  "allPlays": [
+    {
+      "result": { "type": "atBat", "event": "Groundout", "eventType": "field_out", "description": "Kevin McGonigle grounds out, second baseman Lenyn Sosa to first baseman Miguel Vargas.", "awayScore": 0, "homeScore": 0 },
+      "about": { "atBatIndex": 0, "halfInning": "top", "isTopInning": true, "inning": 1, "startTime": "2026-09-20T22:00:41Z", "endTime": "2026-09-20T22:01:30Z", "isComplete": true },
+      "playEvents": [
+        { "details": { "description": "Status Change - Delayed Start: Rain", "event": "Game Advisory", "eventType": "game_advisory" }, "index": 0, "startTime": "2026-09-20T17:26:12Z", "endTime": "2026-09-20T21:38:05Z", "isPitch": false, "type": "action" },
+        { "details": { "description": "Status Change - Warmup", "event": "Game Advisory", "eventType": "game_advisory" }, "index": 1, "startTime": "2026-09-20T21:38:05Z", "endTime": "2026-09-20T21:59:58Z", "isPitch": false, "type": "action" },
+        { "details": { "description": "Status Change - In Progress", "event": "Game Advisory", "eventType": "game_advisory" }, "index": 2, "startTime": "2026-09-20T21:59:58Z", "endTime": "2026-09-20T22:00:41Z", "isPitch": false, "type": "action" },
+        { "details": { "call": { "code": "X", "description": "In play, out(s)" }, "description": "In play, out(s)", "isInPlay": true, "isStrike": false, "isBall": false }, "index": 3, "startTime": "2026-09-20T22:01:15Z", "endTime": "2026-09-20T22:01:30Z", "isPitch": true, "type": "pitch" }
+      ]
+    }
+  ]
+}

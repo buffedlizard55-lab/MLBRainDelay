@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MLB Rain Delay — Delay Feed</title>
+  <meta name="description" content="Live all-games MLB delay feed: official rain delays, postponements and suspensions from the MLB StatsAPI with reasons, timelines and official delay minutes, plus NWS / Environment Canada forecasts and active weather alerts at every ballpark. Every row links to its official sources.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='%23fff' stroke='%232f81f7' stroke-width='6'/%3E%3Cpath d='M50 4 A46 46 0 0 1 96 50 M50 96 A46 46 0 0 1 4 50 M4 50 A46 46 0 0 1 50 4 M96 50 A46 46 0 0 1 50 96' stroke='%232f81f7' stroke-width='2.5' fill='none'/%3E%3Cpath d='M38 62 l-6 14 M50 62 l-6 14 M62 62 l-6 14' stroke='%2338bdf8' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body class="page-reviews">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-ball">⚾</span>
+      <span>MLB Rain Delay</span>
+      <span class="brand-sub">delay feed · all games</span>
+    </div>
+    <a id="back-link" class="btn btn-ghost" href="index.html">← Scoreboard</a>
+    <div class="date-nav">
+      <button class="btn btn-ghost" onclick="DelayFeed.prevDay()" title="Previous day">←</button>
+      <input type="date" id="date-picker" onchange="DelayFeed.pickDate()" aria-label="Game date">
+      <button class="btn btn-ghost" onclick="DelayFeed.nextDay()" title="Next day">→</button>
+      <button class="btn" onclick="DelayFeed.today()">Today</button>
+    </div>
+    <div id="date-label" class="date-label"></div>
+    <div class="feed-controls">
+      <button id="sound-toggle-btn" class="btn btn-ghost" title="Toggle a short chime when an official status flips to Delayed / Postponed / Suspended while this page is open">🔇 Sound Off</button>
+      <button id="refresh-btn" class="btn">Refresh</button>
+      <span class="countdown" id="countdown" title="Seconds until the next poll"></span>
+      <div class="live-pill" title="Polling the MLB StatsAPI and the weather services">
+        <span id="live-dot" class="live-dot"></span><span>LIVE</span>
+      </div>
+    </div>
+  </header>
+
+  <div id="banner" class="banner"></div>
+
+  <main class="reviews-main">
+    <section id="active-strip" class="active-strip-wrap"></section>
+
+    <section id="feed-stats" class="reviews-summary-bar"></section>
+
+    <nav id="feed-tabs" class="tabs" aria-label="Filter feed"></nav>
+
+    <section id="feed-list" class="feed-list" aria-live="polite"></section>
+
+    <div id="status-line" class="status-line"></div>
+
+    <section class="manual-review">
+      <h3>Manual review — official channels</h3>
+      <p>
+        This site never scrapes social media or news sites (a static GitHub Page has no API keys and
+        those platforms block anonymous reads). Every fact above comes from the MLB StatsAPI, the U.S.
+        National Weather Service or Environment and Climate Change Canada, and every row links to the
+        exact payload it was read from. To confirm a delay against a human announcement, use the
+        club's official channels below — the teams' own accounts are the first place MLB delay,
+        tarp and first-pitch updates are posted.
+      </p>
+      <details>
+        <summary>Official MLB and club channels (opens in a new tab)</summary>
+        <div class="manual-links">
+          <a class="source-link" target="_blank" rel="noopener" href="https://www.mlb.com/news">MLB.com News</a>
+          <a class="source-link" target="_blank" rel="noopener" href="https://www.mlb.com/scores">MLB.com Scores</a>
+          <a class="source-link" target="_blank" rel="noopener" href="https://x.com/MLB">@MLB</a>
+          <a class="source-link" target="_blank" rel="noopener" href="https://x.com/MLB_PR">@MLB_PR</a>
+          <a class="source-link" target="_blank" rel="noopener" href="https://www.reddit.com/r/baseball/">r/baseball</a>
+          <a class="source-link source-link-gov" target="_blank" rel="noopener" href="https://www.weather.gov/">weather.gov</a>
+          <a class="source-link source-link-gov" target="_blank" rel="noopener" href="https://www.spc.noaa.gov/products/outlook/">SPC convective outlook</a>
+          <a class="source-link source-link-gov" target="_blank" rel="noopener" href="https://radar.weather.gov/">NWS radar</a>
+          <a class="source-link source-link-gov" target="_blank" rel="noopener" href="https://weather.gc.ca/warnings/index_e.html">ECCC warnings</a>
+        </div>
+        <div class="manual-links" id="club-links"></div>
+      </details>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>
+      Unofficial fan project. <strong>Delays</strong> are read from the official game status on the
+      MLB StatsAPI schedule (<code>status.detailedState</code> / <code>statusCode</code> /
+      <code>reason</code>, vocabulary from <code>GET /api/v1/gameStatus</code>), the official
+      status-change advisories in the play-by-play (<code>playEvents[].details.eventType =
+      "game_advisory"</code>, description <code>"Status Change - Delayed: Rain"</code> with
+      <code>startTime</code>/<code>endTime</code>), MLB's own delay figure
+      (<code>gameInfo.delayDurationMinutes</code>) and the printed box-score time line
+      (<code>T: 2:50 (3:50 delay)</code>). <strong>Postponements / suspensions</strong> use the same
+      status fields plus <code>rescheduleDate</code> / <code>rescheduledFrom</code> /
+      <code>resumeDate</code>. <strong>Forecasts and alerts</strong> come from the National Weather
+      Service (<code>api.weather.gov</code> points → hourly forecast → active alerts at the venue's
+      own coordinates) or Environment and Climate Change Canada (<code>api.weather.gc.ca</code>
+      city-page weather) for Toronto; venues neither covers fall back to Open-Meteo model data and
+      are flagged. The forecast-risk bucket is a fixed rule over those numbers (documented on the
+      <a href="docs/verification.html">verification page</a>), not a prediction. Rows marked
+      <em>observed</em> are status flips this browser saw between polls and carry this browser's
+      clock, never an official time. When the official figures disagree with each other the row is
+      flagged 🚩 and nothing is corrected or hidden. Not affiliated with MLB, MLB Advanced Media,
+      NOAA or ECCC.
+    </p>
+  </footer>
+
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/delays.js"></script>
+  <script src="assets/js/weather.js"></script>
+  <script src="assets/js/clubs.js"></script>
+  <script src="assets/js/delay-feed.js"></script>
+</body>
+</html>

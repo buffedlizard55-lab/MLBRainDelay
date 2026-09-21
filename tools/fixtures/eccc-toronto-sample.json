@@ -1,0 +1,45 @@
+{
+  "_source": "https://api.weather.gc.ca/collections/citypageweather-realtime/items?f=json&limit=1&lang=en&bbox=-79.5,43.6,-79.3,43.7",
+  "_verified": "2026-09-21 — feature 'on-128' (Toronto Island); bilingual leaf shape verbatim, hourly list shortened",
+  "type": "FeatureCollection",
+  "numberMatched": 2, "numberReturned": 1,
+  "features": [
+    {
+      "type": "Feature", "id": "on-128",
+      "geometry": { "type": "Point", "coordinates": [-79.39, 43.63] },
+      "properties": {
+        "identifier": "on-128",
+        "lastUpdated": "2026-09-21T02:42:50Z",
+        "name": { "en": "Toronto Island", "fr": "Toronto Island" },
+        "region": { "en": "City of Toronto", "fr": "Ville de Toronto" },
+        "url": { "en": "https://weather.gc.ca/en/location/index.html?coords=43.63,-79.39", "fr": "https://meteo.gc.ca/fr/location/index.html?coords=43.63,-79.39" },
+        "currentConditions": {
+          "timestamp": { "en": "2026-09-21T02:00:00Z", "fr": "2026-09-21T02:00:00Z" },
+          "condition": { "en": "Clear", "fr": "Dégagé" },
+          "temperature": { "unitType": { "en": "metric" }, "units": { "en": "C" }, "value": { "en": 17.6, "fr": 17.6 } },
+          "dewpoint": { "value": { "en": 9.5 } },
+          "relativeHumidity": { "units": { "en": "%" }, "value": { "en": 59, "fr": 59 } },
+          "wind": { "speed": { "units": { "en": "km/h" }, "value": { "en": 13, "fr": 13 } }, "direction": { "value": { "en": "NNW", "fr": "NNO" } }, "gust": { "value": { "en": null } } },
+          "station": { "value": { "en": "Toronto City Centre Airport" }, "code": { "en": "ytz" } }
+        },
+        "forecastGroup": {
+          "timestamp": { "en": "2026-09-20T15:30:00Z" },
+          "forecasts": [
+            { "period": { "textForecastName": { "en": "Tonight", "fr": "Ce soir et cette nuit" } }, "textSummary": { "en": "A few clouds. Wind northeast 20 km/h. Low 7.", "fr": "Quelques nuages. Vents du nord-est de 20 km/h. Minimum 7." }, "cloudPrecip": { "en": "A few clouds." }, "abbreviatedForecast": { "textSummary": { "en": "A few clouds" } } },
+            { "period": { "textForecastName": { "en": "Tuesday", "fr": "Mardi" } }, "textSummary": { "en": "Sunny. High 17.", "fr": "Ensoleillé. Maximum 17." }, "cloudPrecip": { "en": "Sunny." }, "abbreviatedForecast": { "textSummary": { "en": "Sunny" } } }
+          ]
+        },
+        "hourlyForecastGroup": {
+          "timestamp": { "en": "2026-09-20T15:30:00Z", "fr": "2026-09-20T15:30:00Z" },
+          "hourlyForecasts": [
+            { "condition": { "en": "Mainly cloudy", "fr": "Généralement nuageux" }, "temperature": { "units": { "en": "C" }, "value": { "en": 15, "fr": 15 } }, "iconCode": { "value": 3, "url": "https://weather.gc.ca/weathericons/03.gif" }, "lop": { "units": { "en": "%" }, "category": { "en": "Nil" }, "value": { "en": 0, "fr": 0 } }, "timestamp": "2026-09-21T22:00:00Z", "wind": { "speed": { "units": { "en": "km/h" }, "value": { "en": 20, "fr": 20 } }, "direction": { "windDirFull": { "en": "Northeast" }, "value": { "en": "NE", "fr": "NE" } } } },
+            { "condition": { "en": "Chance of showers", "fr": "Possibilité d'averses" }, "temperature": { "units": { "en": "C" }, "value": { "en": 15, "fr": 15 } }, "iconCode": { "value": 6, "url": "https://weather.gc.ca/weathericons/06.gif" }, "lop": { "units": { "en": "%" }, "category": { "en": "Medium" }, "value": { "en": 40, "fr": 40 } }, "timestamp": "2026-09-21T23:00:00Z", "wind": { "speed": { "units": { "en": "km/h" }, "value": { "en": 20, "fr": 20 } }, "direction": { "windDirFull": { "en": "Northeast" }, "value": { "en": "NE", "fr": "NE" } } } },
+            { "condition": { "en": "Partly cloudy", "fr": "Partiellement nuageux" }, "temperature": { "units": { "en": "C" }, "value": { "en": 14, "fr": 14 } }, "iconCode": { "value": 32, "url": "https://weather.gc.ca/weathericons/32.gif" }, "lop": { "units": { "en": "%" }, "category": { "en": "Low" }, "value": { "en": 10, "fr": 10 } }, "timestamp": "2026-09-22T00:00:00Z", "wind": { "speed": { "units": { "en": "km/h" }, "value": { "en": 20, "fr": 20 } }, "direction": { "windDirFull": { "en": "Northeast" }, "value": { "en": "NE", "fr": "NE" } } } }
+          ]
+        },
+        "warnings": [],
+        "riseSet": { "sunrise": { "en": "2026-09-21T11:03:00Z" }, "sunset": { "en": "2026-09-21T23:17:00Z" } }
+      }
+    }
+  ]
+}
