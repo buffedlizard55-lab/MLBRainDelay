@@ -418,15 +418,43 @@
     return out;
   }
 
-  /** Fill the manual-review club links for the current slate (one per club). */
+  /** Fill the manual-review link panels (league, independent, weather, clubs). */
   function renderClubLinks() {
-    const el = $('#club-links');
-    if (!el) return;
-    UI.clear(el);
     if (typeof Clubs === 'undefined') return;
-    Clubs.newsLinks(state.games).forEach((l) => {
-      el.appendChild(UI.el('a', 'source-link', l.label, { href: l.url, target: '_blank', rel: 'noopener' }));
-    });
+
+    function fill(id, links, extraCls) {
+      const el = document.querySelector(`#${id}`);
+      if (!el) return;
+      UI.clear(el);
+      (links || []).forEach((l) => {
+        let cls = 'source-link';
+        if (l.kind === 'gov') cls += ' source-link-gov';
+        else if (l.kind === 'official') cls += ' source-link-official';
+        else if (l.kind === 'social') cls += ' source-link-social';
+        else if (l.kind === 'community') cls += ' source-link-community';
+        else if (l.kind === 'model') cls += ' source-link-model';
+        if (extraCls) cls += ` ${extraCls}`;
+        el.appendChild(UI.el('a', cls, l.label, { href: l.url, target: '_blank', rel: 'noopener' }));
+      });
+    }
+
+    // League + official PR accounts
+    fill('league-links', [
+      { label: 'MLB.com News (league, official)', url: 'https://www.mlb.com/news', kind: 'official' },
+      { label: 'MLB.com Scores', url: 'https://www.mlb.com/scores', kind: 'official' },
+      { label: '@MLB (official league X/Twitter)', url: 'https://x.com/MLB', kind: 'social' },
+      { label: '@MLB_PR (official PR X/Twitter)', url: 'https://x.com/MLB_PR', kind: 'social' },
+    ]);
+
+    // Independent / community
+    const indyLinks = [...Clubs.INDEPENDENT_CHANNELS];
+    fill('independent-links', indyLinks);
+
+    // Government weather
+    fill('weather-links', Clubs.WEATHER_CHANNELS);
+
+    // Clubs playing today — official news + verified account links
+    fill('club-links', Clubs.newsLinks(state.games));
   }
 
   /** Build every feed row for the current state (pure over state). */
@@ -546,7 +574,7 @@
       const seg = (state.pbp.get(g.gamePk) || {}).timeline;
       const open = seg && seg.find((s) => s.open);
       if (open && open.startTime) a.appendChild(UI.el('span', 'feed-active-reason', `since ${MLB.localTime(open.startTime)}`));
-      a.appendChild(UI.el('span', 'feed-active-reason', 'Expected restart: not confirmed by this app'));
+      a.appendChild(UI.el('span', 'feed-active-reason', 'Expected restart: not announced — check official club links below'));
       strip.appendChild(a);
     });
     wrap.appendChild(strip);

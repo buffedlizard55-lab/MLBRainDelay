@@ -50,10 +50,40 @@ const SLUGS = [
   'yankees',
 ];
 
+/*
+ * RSS feeds scanned for delay / weather mentions. Everything here is a
+ * PUBLIC, KEYLESS, machine-readable news feed — no API credentials, no
+ * login walls. A feed failure is surfaced in the published snapshot and
+ * counted against coverage; feeds are NEVER silently skipped.
+ *
+ * Categories:
+ *   official  — MLB.com property (league or club); these are the publisher
+ *               of record for an official delay / postponement announcement.
+ *   wire      — Independent news wire / major outlet. Provides reporting
+ *               context but is NOT an official club/league statement.
+ *
+ * Facebook, Instagram and Reddit DO NOT publish keyless public RSS feeds
+ * for team accounts (verified 2026-09-21). X/Twitter deprecated their
+ * public RSS access in 2013 and locked down anonymous reads in 2023.
+ * Threads, Bluesky and other newer platforms similarly require
+ * authenticated API access. These platforms can only be consumed via
+ * authorized credentials (see docs/implementation-review.md).
+ */
 const FEEDS = [
-  { name: 'MLB.com — league news', url: 'https://www.mlb.com/feeds/news/rss.xml' },
-  { name: 'ESPN — MLB news', url: 'https://www.espn.com/espn/rss/mlb/news' },
-  ...SLUGS.map((slug) => ({ name: `MLB.com — ${slug} news`, url: `https://www.mlb.com/${slug}/feeds/news/rss.xml` })),
+  /* Official MLB league feed */
+  { name: 'MLB.com — league news', url: 'https://www.mlb.com/feeds/news/rss.xml', category: 'official' },
+  /* Official MLB transaction / transaction-adjacent feeds */
+  { name: 'MLB.com — transactions', url: 'https://www.mlb.com/feeds/transactions/rss.xml', category: 'official' },
+  /* Independent / wire-service reporting (context, not official statements) */
+  { name: 'ESPN — MLB news', url: 'https://www.espn.com/espn/rss/mlb/news', category: 'wire' },
+  { name: 'ESPN — Top MLB', url: 'https://www.espn.com/espn/rss/mlb/index', category: 'wire' },
+  { name: 'CBS Sports — MLB', url: 'https://www.cbssports.com/rss/headlines/mlb/', category: 'wire' },
+  { name: 'Yahoo! Sports — MLB', url: 'https://sports.yahoo.com/mlb/rss/', category: 'wire' },
+  { name: 'Sports Illustrated — MLB', url: 'https://www.si.com/rss/si-baseball.rss', category: 'wire' },
+  { name: 'The Athletic (feedburner mirror)', url: 'https://feeds.theathletic.com/baseball', category: 'wire' },
+  { name: 'NBC Sports — Hardball Talk', url: 'https://mlb.nbcsports.com/feed/', category: 'wire' },
+  /* Club feeds — official publisher-of-record per team */
+  ...SLUGS.map((slug) => ({ name: `MLB.com — ${slug} news (official)`, url: `https://www.mlb.com/${slug}/feeds/news/rss.xml`, category: 'official' })),
 ];
 
 /* ------------------------------------------------------------- vocabulary */
@@ -158,12 +188,12 @@ function classifyItem(item) {
 
 const UA = 'MLBRainDelay-news-scan/1.0 (official MLB/ESPN RSS; weather-delay fan project)';
 
-async function fetchFeed({ name, url }, { timeout = 15000 } = {}) {
+async function fetchFeed({ name, url, category }, { timeout = 15000 } = {}) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeout);
   try {
     const res = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'application/rss+xml, application/xml, text/xml, */*' }, signal: ctrl.signal });
-    if (!res.ok) return { name, url, ok: false, status: res.status, items: [], flagged: [], error: `HTTP ${res.status}` };
+    if (!res.ok) return { name, url, ok: false, category: category || 'unknown', status: res.status, items: [], flagged: [], error: `HTTP ${res.status}` };
     const xml = await res.text();
     if (!/<rss\b/i.test(xml) || !/<channel\b/i.test(xml) || !/<\/channel>/i.test(xml)) {
       throw new Error('Unexpected feed format (expected RSS channel)');
@@ -175,9 +205,9 @@ async function fetchFeed({ name, url }, { timeout = 15000 } = {}) {
         return c.flagged ? { ...item, matched: { delay: c.delay, weather: c.weather } } : null;
       })
       .filter(Boolean);
-    return { name, url, ok: true, status: res.status, feedTitle: parsed.title, feedLink: parsed.link, items: parsed.items.length, flagged };
+    return { name, url, ok: true, category: category || 'unknown', status: res.status, feedTitle: parsed.title, feedLink: parsed.link, items: parsed.items.length, flagged };
   } catch (err) {
-    return { name, url, ok: false, status: 0, items: [], flagged: [], error: (err && err.message) || String(err) };
+    return { name, url, ok: false, category: category || 'unknown', status: 0, items: [], flagged: [], error: (err && err.message) || String(err) };
   } finally {
     clearTimeout(timer);
   }
@@ -205,7 +235,7 @@ async function run({ feeds = FEEDS, concurrency = 3, out = null } = {}) {
     feedsFailed: results.filter((r) => !r.ok).length,
     feeds: results,
     flagged: results
-      .flatMap((r) => (r.flagged || []).map((f) => ({ feed: r.name, feedUrl: r.url, ...f })))
+      .flatMap((r) => (r.flagged || []).map((f) => ({ feed: r.name, feedUrl: r.url, category: r.category, ...f })))
       .sort((a, b) => (pubDateToEpoch(b.pubDate) || 0) - (pubDateToEpoch(a.pubDate) || 0)),
   };
 

@@ -107,7 +107,7 @@ await test('word lists are lowercased at match time so capitalisation never matt
 
 console.log('news-scan.mjs — feed configuration');
 await test('FEEDS covers the league feed, ESPN and all 30 club feeds with https URLs', () => {
-  assert.equal(FEEDS.length, 32);
+  assert.ok(FEEDS.length >= 39, `Expected at least 39 feeds (league+wire+clubs), got ${FEEDS.length}`);
   assert.ok(FEEDS.some((f) => f.url === 'https://www.mlb.com/feeds/news/rss.xml'));
   assert.ok(FEEDS.some((f) => f.url === 'https://www.espn.com/espn/rss/mlb/news'));
   const slugs = new Set(FEEDS.map((f) => f.url.match(/mlb\.com\/([a-z]+)\/feeds\/news\/rss\.xml/)).filter(Boolean).map((m) => m[1]));

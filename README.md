@@ -17,28 +17,40 @@ resumed.
   and the official delay facts (`Delayed Start: Rain`, `3h 50m official delay`,
   `makeup 2026-09-22`, …). Games delayed **right now** rise to the top under an
   ⏸ ACTIVE DELAYS ticker. Filter tabs: Delays · Rain risk · Alerts · Flagged.
-- **All-games Delay Feed** (`delays.html`, the analogue of the reference site's
-  `reviews.html`) — a live, chat-style feed for the whole slate:
-  - **DELAYED NOW** strip and a row for every game currently delayed or suspended, with
-    the official reason and how long it has been going;
+- **All-games Delay Feed** (`delays.html`) — a live, chat-style feed for the whole slate,
+  organized newest/most-urgent first so you can see every delayed game and its status
+  at a glance:
+  - **⏸ DELAYED NOW** strip at the very top for every game currently delayed or suspended,
+    with the official reason, how long it has been going, and a clear "Expected restart:
+    not announced" notice so scheduled first pitch is never mistaken for an ETA;
   - a **delay history row** for every game that had a delay, with MLB's official minutes,
     the play-by-play **status-change timeline** (`Delayed Start: Rain` at 12:26 PM →
     `Warmup` at 4:38 PM → `In Progress` at 4:59 PM, inning and half for mid-game
     delays), the box-score `T: 2:50 (3:50 delay)` line, and the first-pitch offset;
-  - **postponed / cancelled** rows with the official reason and reschedule date;
-  - a **forecast row per game** (hourly chances in the game window, thunder, wind, roof)
-    and one row per **active weather alert** (Severe Thunderstorm Warning, Tornado
-    Watch, Flood Advisory, …) mapped to the ballparks it covers;
-  - **observed transitions** — when the page itself sees a game flip to Delayed, resume,
+  - **📅 postponed / cancelled / suspended** rows with the official reason and
+    reschedule / resume date;
+  - a **🌧 forecast row per game** (hourly chances in the game window, thunder, wind, roof)
+    and one **⚠ alert row** per active weather warning (Severe Thunderstorm Warning,
+    Tornado Watch, Flood Advisory, …), de-duplicated across parks the warning covers;
+  - **👁 observed transitions** — when the page itself sees a game flip to Delayed, resume,
     or get postponed between two polls it logs the moment (clearly labelled as seen by
-    this browser, never as an official timestamp) and plays an optional chime.
+    this browser, never as an official timestamp) and plays an optional chime;
+  - a **written-reports inbox** of publisher headlines from 40+ RSS feeds (MLB league,
+    30 club feeds, ESPN, CBS Sports, Yahoo! Sports, Sports Illustrated, NBC Sports,
+    The Athletic) flagged for delay/weather keywords, each linked to the original
+    article and labeled as MLB-official or independent reporting;
+  - a **manual-review panel** of discovery links: league accounts (@MLB, @MLB_PR),
+    verified club X/Twitter handles for every team playing today, independent newsrooms,
+    government weather sources (NWS radar, SPC outlook, ECCC warnings), and community
+    outlets like r/baseball (clearly marked as community, not official).
 
-  The alert rows (DELAYED NOW / delay / postponed / observed) are produced **only from
-  official status and advisory data** — a game that MLB has not officially delayed,
-  postponed or suspended never appears as a delay row, whatever the forecast says.
-  Weather forecasts are shown for **every** game, in the separate forecast-row category;
-  a non-weather delay (power, injury) still appears — it genuinely delayed the game —
-  but is flagged `(non-weather)`, never hidden.
+  Delay and postponement rows are produced **only from official MLB status and advisory
+  data** — a game that MLB has not officially delayed never appears as a delay row,
+  whatever the forecast says. Weather forecasts are shown for **every** game, in the
+  separate forecast-row category; a non-weather delay (power, injury, ceremony) still
+  appears — it genuinely delayed the game — but is flagged `(non-weather)`, never hidden.
+  **Expected start / restart times are never inferred** from the schedule, from forecast
+  clearing, or from a reporter's speculation.
 - **Game view** (`game.html`) — one game: header, linescore, an **Official delay status**
   panel (MLB `delayDurationMinutes`, scheduled start vs. actual first pitch, status
   history, advisory timeline, box-score cross-check), a **Weather at the ballpark**
@@ -118,12 +130,15 @@ policies and authorized access; we do not claim that other public sources cannot
 Never put API credentials in this static site.
 
 **Written reports are displayed on [the delay feed](delays.html).** The scanner
-requests MLB league / all 30 club RSS feeds and ESPN MLB RSS every 15 minutes in
-GitHub Actions. Deployment and upstream publishing latency mean this is not a
-real-time guarantee. The Pages artifact includes `docs/news-report.json`; reports
-are not committed back to main. The inbox refreshes once a minute, de-duplicates
-article URLs, labels old/missing timestamps, and displays feed failures and stale
-snapshots. ESPN is independent reporting, not a team announcement.
+requests RSS feeds from MLB (league news + transactions + all 30 clubs), ESPN,
+CBS Sports, Yahoo! Sports, Sports Illustrated, NBC Sports Hardball Talk and The
+Athletic every 15 minutes in GitHub Actions. Deployment and upstream publishing
+latency mean this is not a real-time guarantee. The Pages artifact includes
+`docs/news-report.json`; reports are not committed back to main. The inbox
+refreshes once a minute, shows which words triggered each headline, labels
+articles as MLB-official vs independent reporting, de-duplicates URLs, flags
+old / future / dateless items, and displays per-feed failures and stale
+snapshots. Independent outlets are reporting context, not a team announcement.
 
 Headlines remain review candidates across all dates, **not verified game-specific
 restart reports**. No automated game/date/doubleheader matching or reliable extraction
@@ -137,21 +152,24 @@ See [the current audit and next-session plan](docs/implementation-review.md).
 
 ```
 index.html            Scoreboard (all games, weather strip + delay ticker)
-delays.html           All-games Delay Feed (live delays, history, forecast, alerts, flags)
+delays.html           All-games Delay Feed (live delays, history, forecast, alerts, written reports)
 game.html             Single game (delay panel, weather panel, sources)
+about.html            About this project, sources, methodology and limitations
 404.html              GitHub Pages fallback
-assets/css/style.css  Reference stylesheet + weather/delay blocks
+assets/css/style.css  Stylesheet with weather/delay/report blocks
 assets/js/api.js      StatsAPI client (retry, 429 self-throttle, cache, source-link helpers)
-assets/js/weather.js  NWS → Environment Canada → Open-Meteo provider chain, alerts, risk rules
+assets/js/weather.js  NWS → ECCC → Open-Meteo provider chain, alerts, risk rules
 assets/js/delays.js   Status registry parsing, advisory timeline, box-score cross-checks, flags
-assets/js/clubs.js    Official club news / site links for manual review
+assets/js/clubs.js    Club news + verified X/Twitter handles + independent & weather channel links
+assets/js/reports.js  Written-reports renderer (safe, categorized, de-duplicated)
 assets/js/scoreboard.js · delay-feed.js · game.js   Page controllers
 assets/js/ui.js       DOM helpers, chips, logos
 tools/fixtures/       Captured, verified API payloads (each has _source / _verified)
-tools/*-test.mjs      Offline test suites (run in Node, no network)
-tools/news-scan.mjs   Official-news RSS scanner (league + club + ESPN feeds) → docs/news-report.json
+tools/*-test.mjs      Offline test suites (run in Node, no network) — 75 passing assertions
+tools/news-scan.mjs   RSS scanner (league + 30 clubs + 7 independent outlets) → docs/news-report.json
 docs/verification.md  Line-by-line verification log with the URLs used
 docs/verification.html  Same, rendered for the site footer
+docs/implementation-review.md  Audit log and next-session plan
 docs/workflows/       Optional GitHub Actions (Pages deploy, offline tests)
 ```
 
@@ -211,15 +229,25 @@ this is not a continuous monitoring service.
 
 ## Limitations
 
-See the end of [`docs/verification.md`](docs/verification.md) for the full list. In short:
-Twitter/X, Facebook, Instagram and Reddit are not integrated; official-news scanning is limited to the keyless MLB.com / ESPN RSS feeds and
-runs server-side (scheduled workflow), not in the browser; the browser pages themselves
-therefore link those channels for manual review but do not read them; browser CORS for the
-ECCC endpoint could not be exercised from the build sandbox; the Sacramento (Athletics),
-London, Mexico City and other special-venue coordinates come from MLB's venue record and may
-be missing (flagged `no-coordinates`); the risk chip is a threshold reading of the forecast,
-not a delay prediction; and the social/headline layer is a "flag for review" aid — never an
-assertion that a delay happened.
+See the [About page](about.html#limitations) and
+[`docs/implementation-review.md`](docs/implementation-review.md) for the full list. In short:
+
+- **No social-media ingestion.** X/Twitter, Facebook, Instagram, Reddit, Threads and Bluesky
+  do not provide keyless, CORS-enabled public APIs (verified 2026-09-21). Verified club
+  accounts are linked as discovery links for manual review but are not read automatically.
+- **No automatic restart-time extraction.** Expected start / restart times are never
+  inferred from scheduled first pitch, forecast clearing times or reporter speculation.
+- **RSS scanning is ~15-minute scheduled, not real-time.** GitHub Actions scheduling and
+  Pages publishing add latency; this is not a continuous monitoring service.
+- **Some venues have no government forecast coverage** (e.g., London, Mexico City, Tokyo)
+  and fall back to Open-Meteo model data, flagged as non-government.
+- **Browser CORS for the ECCC (Canada) endpoint could not be exercised from the build
+  sandbox;** Rogers Centre falls back to Open-Meteo (flagged) if the ECCC request fails.
+- **Headlines are not matched to specific games** — they are review candidates, not
+  confirmed restart announcements.
+
+The social/headline layer is a "flag for review" aid — **never** an assertion that a
+delay happened.
 
 ## License
 

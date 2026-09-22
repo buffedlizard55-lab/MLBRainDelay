@@ -16,6 +16,7 @@
       <span class="brand-sub">delay feed · all games</span>
     </div>
     <a id="back-link" class="btn btn-ghost" href="index.html">← Scoreboard</a>
+    <a class="btn btn-ghost" href="about.html">About</a>
     <div class="date-nav">
       <button class="btn btn-ghost" onclick="DelayFeed.prevDay()" title="Previous day">←</button>
       <input type="date" id="date-picker" onchange="DelayFeed.pickDate()" aria-label="Game date">
@@ -57,24 +58,25 @@
     </section>
     <section class="manual-review">
       <h3>Manual review — official channels</h3>
-      <p>MLB status and government weather are separate from publisher reports and forecasts.
-        Open-Meteo fallback forecasts are non-government model data and are flagged.
-        X/Twitter, Facebook, Instagram and Reddit are <strong>not ingested</strong> by this project.
-        Reporter accounts are not independently verified. Community links below are discovery links,
-        not official evidence. No claim of exhaustive social coverage is made.</p>
-      <details>
-        <summary>Source and discovery links (opens in a new tab)</summary>
-        <div class="manual-links">
-          <a class="source-link" target="_blank" rel="noopener" href="https://www.mlb.com/news">MLB.com News</a>
-          <a class="source-link" target="_blank" rel="noopener" href="https://www.mlb.com/scores">MLB.com Scores</a>
-          <a class="source-link" target="_blank" rel="noopener" href="https://x.com/MLB">@MLB</a>
-          <a class="source-link" target="_blank" rel="noopener" href="https://x.com/MLB_PR">@MLB_PR</a>
-          <a class="source-link" target="_blank" rel="noopener" href="https://www.reddit.com/r/baseball/">r/baseball (community, not official)</a>
-          <a class="source-link source-link-gov" target="_blank" rel="noopener" href="https://www.weather.gov/">weather.gov</a>
-          <a class="source-link source-link-gov" target="_blank" rel="noopener" href="https://www.spc.noaa.gov/products/outlook/">SPC convective outlook</a>
-          <a class="source-link source-link-gov" target="_blank" rel="noopener" href="https://radar.weather.gov/">NWS radar</a>
-          <a class="source-link source-link-gov" target="_blank" rel="noopener" href="https://weather.gc.ca/warnings/index_e.html">ECCC warnings</a>
-        </div>
+      <p><strong>How to read this page:</strong> Delayed games appear at the top in the ⏸ DELAYED NOW strip.
+        The official game status (StatsAPI), the NWS/ECCC/Open-Meteo forecast for each ballpark, and any active weather alerts
+        are loaded automatically. Publisher reports in the inbox below are keyword-matched headlines from
+        official MLB RSS and independent news outlets — they are <strong>review candidates only</strong>, not confirmed
+        restart times. <strong>Expected start / restart times are never inferred</strong> from scheduled first pitch,
+        forecast clearing times, or reporter speculation — open the official links to confirm.</p>
+      <p>X/Twitter, Facebook, Instagram, Reddit, Threads and Bluesky are <strong>not ingested</strong> by this project
+        (no keyless, CORS-enabled public API exists as of 2026-09-21; see
+        <a href="about.html">About · Sources · Limitations</a>). The links below are discovery links
+        for manual verification; they are not data sources and community outlets are not official evidence.</p>
+      <details open>
+        <summary>League-wide & weather sources (opens in a new tab)</summary>
+        <h4 class="manual-section-head">Official league</h4>
+        <div class="manual-links" id="league-links"></div>
+        <h4 class="manual-section-head">Independent reporting (context — not official club statements)</h4>
+        <div class="manual-links" id="independent-links"></div>
+        <h4 class="manual-section-head">Government weather</h4>
+        <div class="manual-links" id="weather-links"></div>
+        <h4 class="manual-section-head">Clubs playing today — official news & verified accounts</h4>
         <div class="manual-links" id="club-links"></div>
       </details>
     </section>
