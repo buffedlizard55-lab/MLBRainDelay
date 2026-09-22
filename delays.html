@@ -54,7 +54,11 @@
         game-date selector above. Scheduled every 15 minutes; publishing can be delayed.
         These are source-linked review candidates — community entries are fan discussion, not official
         statements — never verified restart announcements.
-        We never infer an expected start time from weather or a scheduled first pitch.</p>
+        When a headline names a team (or both opponents) that uniquely identifies one game on the
+        selected slate, it is linked to that game; ambiguous headlines (doubleheaders without a game
+        number, non-opponents, three-plus clubs) stay unlinked on purpose.
+        Explicit restart / first-pitch wording is quoted with the original evidence string — we never
+        infer an expected start time from weather or a scheduled first pitch.</p>
       <div id="scan-status" aria-live="polite"></div>
       <div id="written-reports" aria-live="polite">Loading publisher reports…</div>
       <p><a href="docs/news-report.json">Full source snapshot (JSON)</a> · <a href="docs/implementation-review.md">Coverage, audit and next steps</a></p>
@@ -116,6 +120,7 @@
   <script src="assets/js/delays.js"></script>
   <script src="assets/js/weather.js"></script>
   <script src="assets/js/clubs.js"></script>
+  <script src="assets/js/match.js"></script>
   <script src="assets/js/delay-feed.js"></script>
   <script src="assets/js/reports.js"></script>
 </body>
