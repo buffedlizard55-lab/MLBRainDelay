@@ -64,9 +64,16 @@ See `docs/verification.md` §11.1 for the full table. Highlights:
 7. `assets/css/style.css` — `.report-cat-community`, `.sparse-note`,
    `.scan-status-line`.
 8. Cleanup: removed stale `docs/workflows/` template copies (the live workflows
-   in `.github/workflows/` are the source of truth); smoke workflow header fixed.
-9. Tests: +4 (sparse schedule), +8 (Reddit/social), +5 (report URL safety /
-   community label); `AbortSignal` added to the render-test DOM shim.
+   in `.github/workflows/` are the source of truth); smoke workflow header fixed;
+   `.gitignore` for local scan output.
+9. Tests: +4 (sparse schedule), +9 (Reddit/social incl. permalink policy), +5
+   (report URL safety / community label), +2 (sub-hour box score delay note);
+   `AbortSignal` added to the render-test DOM shim.
+10. `assets/js/delays.js` — `parseBoxscoreInfo` now parses MLB's sub-hour delay
+    note form `:47 delay` (minutes only) as well as `3:50 delay`. Caught in
+    Pass 3 from the live site: 824787's box score `T: "2:30 (:47 delay)."`
+    (official `delayDurationMinutes` 47) raised a spurious
+    `boxscore-note-unparsed` flag.
 
 ## Three-pass verification (this session)
 
@@ -81,9 +88,12 @@ See `docs/verification.md` §11.1 for the full table. Highlights:
   social results tested end-to-end with a stubbed fetch; 403 path tested;
   `AbortSignal` shim gap found and fixed.
 - **Pass 3 (requirements re-check):** traced every original requirement to code
-  and to today's live verification (see matrix below); docs updated (README,
-  about.html, verification.md §11 + regenerated verification.html);
-  no fabricated fields or times introduced anywhere.
+  and to today's live verification (see matrix below); re-fetched the deployed
+  site, which surfaced the sub-hour box score delay-note gap (824787,
+  `:47 delay`) — fixed in `parseBoxscoreInfo` with 2 regression tests;
+  docs updated (README, about.html, verification.md §11 + regenerated
+  verification.html); final suites: delays 32, weather 25, news 25, render 8,
+  reports pass; no fabricated fields or times introduced anywhere.
 
 ## Requirements → implementation map (re-checked 2026-09-22)
 

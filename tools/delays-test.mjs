@@ -288,6 +288,20 @@ test('a T line without a delay parses cleanly', () => {
   assert.equal(box.delayMinutes, null);
   assert.equal(box.delayNote, null);
 });
+test('sub-hour delay printed minutes-only is parsed (live 2026-09-21 824787: "2:30 (:47 delay).", official 47 min)', () => {
+  const box = Delays.parseBoxscoreInfo([{ label: 'T', value: '2:30 (:47 delay).' }]);
+  assert.equal(box.timeOfGame, '2:30');
+  assert.equal(box.delayNote, ':47 delay');
+  assert.equal(box.delayMinutes, 47);
+  const ins = { official: { delayMinutes: 47 }, status: { kind: 'final' } };
+  const flags = Delays.crossCheck(ins, null, box);
+  assert.ok(!flags.some((f) => f.code === 'boxscore-mismatch'), '47 = 47, no mismatch');
+  assert.ok(!flags.some((f) => f.code === 'boxscore-note-unparsed'), 'minutes-only note is parseable');
+});
+test('an hour:minute delay note still parses (3:50 delay → 230)', () => {
+  const box = Delays.parseBoxscoreInfo([{ label: 'T', value: '2:50 (3:50 delay).' }]);
+  assert.equal(box.delayMinutes, 230);
+});
 test('crossCheck: 824546 — schedule 230, advisories 252 start segment but official start delay 230 → consistent (start part uses first pitch − scheduled)', () => {
   const game = byPk.get(824546);
   const ins = Delays.inspectGame(game);
