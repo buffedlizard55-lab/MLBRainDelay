@@ -420,8 +420,12 @@ const Delays = (() => {
           out.timeOfGame = `${m[1]}:${m[2]}`;
           if (m[3]) {
             out.delayNote = m[3].trim();
-            const dm = /(\d+):(\d{2})\s*delay/i.exec(m[3]);
-            if (dm) out.delayMinutes = parseInt(dm[1], 10) * 60 + parseInt(dm[2], 10);
+            // MLB prints sub-hour delays with minutes only: "T: 2:30
+            // (:47 delay)." (verified live 2026-09-22 on 824787, where
+            // delayDurationMinutes was 47). Hour:minute prints as "3:50
+            // delay". The hour group is optional in both forms.
+            const dm = /(?:(\d+):)?(\d{1,2})\s*delay/i.exec(m[3]);
+            if (dm) out.delayMinutes = (dm[1] ? parseInt(dm[1], 10) : 0) * 60 + parseInt(dm[2], 10);
           }
         } else if (value) {
           out.delayNote = value;

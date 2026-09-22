@@ -306,7 +306,7 @@ no outbound network (curl fails), which is disclosed, not worked around.
 | ESPN MLB RSS | `espn.com/espn/rss/mlb/news` → HTTP 200, fresh items; pubDates use `EST` zone notation in September | ✅ parsed exactly as published (`EST` → UTC−5); the scanner interprets the zone the feed states and never invents an offset |
 | Reddit anonymous | `www.reddit.com/r/baseball/new.json`, `api.reddit.com/…`, `old.reddit.com/…/.json` → HTTP **403** (three host variants) | ✅ blocked from this egress; the scanner reports it per source instead of skipping |
 | GitHub Pages mode | `GET /repos/buffedlizard55-lab/MLBRainDelay/pages` → `build_type "legacy"`, source `main`/`/`; `PUT …/pages build_type=workflow` → **403 "Resource not accessible by integration"** (admin-only) | ✅ confirms the published-snapshot blocker (§11.2 #3, Limitations #2) |
-| Deployed site, 2026-09-21 slate | `https://buffedlizard55-lab.github.io/MLBRainDelay/index.html` renders "3 games · 1 in progress · 0 delayed now" with "⏱ 47m official delay · first pitch 7:22 PM (+47m)" for 824787; `docs/news-report.json` → 404 | ✅ site live; inbox 404 explained by the legacy Pages mode above |
+| Deployed site, 2026-09-21 slate | `https://buffedlizard55-lab.github.io/MLBRainDelay/index.html` renders "3 games · 1 in progress · 0 delayed now" with "⏱ 47m official delay · first pitch 7:22 PM (+47m)" for 824787; `docs/news-report.json` → 404 | ✅ site live; inbox 404 explained by the legacy Pages mode above. **The deployed feed also carried a spurious `boxscore-note-unparsed` flag on 824787: its box score prints the sub-hour delay as `T: "2:30 (:47 delay)."` (minutes only), which the `h:mm`-only regex did not parse. Fixed in `parseBoxscoreInfo` + 2 new unit tests (§11.2 #6)** |
 
 ### 11.2 Findings and fixes this pass
 
@@ -317,14 +317,15 @@ no outbound network (curl fails), which is disclosed, not worked around.
 | 3 | The public site's written-reports inbox was 404: Pages is on legacy branch publishing, so the workflow-built snapshot never reached the public site, and the workflow cannot switch Pages mode itself (403, admin-only). | The delay feed's reports section now shows the **latest scan run** (time, status, direct link to the run and its artifact) from the public GitHub API, and when the snapshot is 404 it prints the exact admin steps (Settings → Pages → Source: GitHub Actions) instead of a generic "unavailable". |
 | 4 | Stale copies of the workflow templates in `docs/workflows/` could mislead a reviewer about what is actually deployed. | Removed; `.github/workflows/smoke.yml` header updated; README structure list updated. |
 | 5 | `reports.js` snapshot header and category handling only knew `official`/`wire`. | Added the `community` category (labelled "Community — NOT official", distinct badge) and the `www.reddit.com` host to the URL allowlist (lookalike hosts rejected, tested). |
+| 6 | **Sub-hour box score delay notes parsed as unparseable.** 824787's box score prints the official 47-minute delay as `T: "2:30 (:47 delay)."` (minutes only — MLB's sub-hour form), and the `h:mm`-only regex did not match it, so the deployed feed showed a spurious `boxscore-note-unparsed` flag. | `parseBoxscoreInfo` now matches `(?:(\d+):)?(\d{1,2})\s*delay` — `:47 delay` → 47, `3:50 delay` still → 230. 2 new unit tests (sub-hour parse + silent crossCheck; hour:minute regression). |
 
 ### 11.3 Test evidence
 
 ```
 $ for f in assets/js/*.js; do node --check "$f"; done      # clean
-$ node tools/delays-test.mjs     # 30 passed  (+4 sparse-schedule)
+$ node tools/delays-test.mjs     # 32 passed  (+4 sparse-schedule, +2 sub-hour delay note)
 $ node tools/weather-test.mjs    # 25 passed
-$ node tools/news-test.mjs       # 24 passed  (+8 social/Reddit)
+$ node tools/news-test.mjs       # 25 passed  (+8 social/Reddit, +1 permalink policy)
 $ node tools/render-test.mjs     # 8 passed
 $ node tools/reports-test.mjs    # passed     (+5 reddit URL safety / community label)
 ```
