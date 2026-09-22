@@ -36,6 +36,11 @@ jobs:
           cp -r docs/* _site/docs/
           node tools/news-scan.mjs --out _site/docs/news-report.json
           touch _site/.nojekyll
+          # Verify every HTML entry point exists in the built artifact
+          for f in index.html delays.html game.html about.html 404.html; do
+            test -f "_site/$f" || { echo "Missing _site/$f"; exit 1; }
+          done
+          echo "Pages artifact contains:"; ls _site/
           node -e 'const r=require("./_site/docs/news-report.json"); console.log(JSON.stringify({feedsOk:r.feedsOk,feedsFailed:r.feedsFailed,headlines:r.flagged.length})); if(r.feedsFailed) console.log("::warning::News scan has unavailable feeds; see the published snapshot.")'
       - name: Check Pages deployment mode
         id: pages

@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MLB Rain Delay — About · Sources · Limitations</title>
+  <meta name="description" content="About MLB Rain Delay: how delays, forecasts and written reports are gathered, which sources are official, what is verified automatically, and the project's limitations.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='%23fff' stroke='%232f81f7' stroke-width='6'/%3E%3Cpath d='M38 62 l-6 14 M50 62 l-6 14 M62 62 l-6 14' stroke='%2338bdf8' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <style>
+    .about-main { max-width: 880px; margin: 0 auto; padding: 24px 22px 60px; }
+    .about-main h1 { font-size: 28px; margin: 0 0 4px; }
+    .about-main h2 { font-size: 18px; margin: 28px 0 8px; border-left: 4px solid var(--accent); padding-left: 10px; }
+    .about-main h3 { font-size: 15px; margin: 18px 0 6px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; font-size: 12px; }
+    .about-main p, .about-main li { font-size: 14px; line-height: 1.6; color: #c5d4e8; }
+    .about-main ul { padding-left: 22px; margin: 6px 0; }
+    .about-main li { margin: 4px 0; }
+    .about-main code { background: rgba(47,129,247,0.12); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; color: #74c0fc; }
+    .about-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+    .about-table th, .about-table td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    .about-table th { color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.6px; font-weight: 800; }
+    .about-table td:first-child { font-weight: 700; color: var(--text); white-space: nowrap; }
+    .callout { background: rgba(47,129,247,0.08); border: 1px solid rgba(47,129,247,0.35); border-left: 4px solid var(--accent); border-radius: 8px; padding: 12px 16px; margin: 14px 0; }
+    .callout-warn { background: rgba(210,153,34,0.08); border-color: rgba(210,153,34,0.45); border-left-color: var(--yellow); }
+    .callout-warn p { color: #ffe066; }
+    .limitation-tag { display: inline-block; background: rgba(224,49,49,0.12); color: #ffa8a8; border: 1px solid rgba(224,49,49,0.4); border-radius: 4px; padding: 1px 7px; font-size: 11px; font-weight: 700; margin-right: 4px; }
+    .source-list { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+    .about-nav { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0 0; }
+  </style>
+</head>
+<body class="page-scoreboard">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-ball">⚾</span>
+      <span>MLB Rain Delay</span>
+      <span class="brand-sub">about · sources · limitations</span>
+    </div>
+    <a class="btn btn-ghost" href="index.html">← Scoreboard</a>
+    <a class="btn btn-feed" href="delays.html">🌧 Delay Feed</a>
+  </header>
+
+  <main class="about-main">
+    <h1>About this project</h1>
+    <p style="color: var(--muted);">Unofficial fan project · Updated <span id="build-date"></span></p>
+
+    <div class="callout">
+      <p style="margin:0; color: var(--text); font-weight: 600;">One rule: we never invent a fact.</p>
+      <p style="margin:8px 0 0;">Everything you see on the scoreboard, delay feed and game page is pulled from
+      a named, linkable official source. When two official sources disagree the row gets a 🚩 flag instead of
+      being silently "corrected." Forecast-risk chips are a fixed, printed rule over the official forecast —
+      not a prediction of whether a delay will happen. Expected restart times are <strong>never</strong>
+      inferred from scheduled first pitch, from weather clearing, or from a reporter's speculation.</p>
+    </div>
+
+    <div class="about-nav">
+      <a class="btn btn-ghost" href="#how-it-works">How it works</a>
+      <a class="btn btn-ghost" href="#sources">Sources</a>
+      <a class="btn btn-ghost" href="#chat-feed">Chat-style feed</a>
+      <a class="btn btn-ghost" href="#weather">Weather</a>
+      <a class="btn btn-ghost" href="#reports">Written reports</a>
+      <a class="btn btn-ghost" href="#irregularities">🚩 Irregularities</a>
+      <a class="btn btn-ghost" href="#limitations">Limitations</a>
+      <a class="btn btn-ghost" href="#next">Next steps</a>
+    </div>
+
+    <h2 id="how-it-works">How it works</h2>
+    <p>This is a <strong>zero-dependency static site</strong> hosted on GitHub Pages. There is no backend
+    server, no database, and no API key baked into the page. Every data request goes directly from your
+    browser to a public, CORS-enabled official endpoint:</p>
+    <ul>
+      <li><strong>Every ~5–20 seconds</strong> (depending on whether games are live) your browser polls the
+      <code>statsapi.mlb.com</code> schedule for the selected date, then pulls play-by-play advisories and
+      box-score notes for any game showing a delay.</li>
+      <li><strong>Every ~5 minutes</strong> the NWS / ECCC / Open-Meteo forecast at each ballpark is refreshed;
+      active weather alerts poll every ~2 minutes.</li>
+      <li><strong>Every 15 minutes</strong> a GitHub Actions workflow scans 40+ RSS feeds (MLB league + 30
+      clubs + major independent outlets) and publishes a JSON snapshot of delay/weather headlines. Your
+      browser refreshes that snapshot once a minute.</li>
+    </ul>
+
+    <h2 id="sources">Sources of truth</h2>
+    <table class="about-table">
+      <thead><tr><th>What you see</th><th>Where it comes from</th><th>Verify it yourself</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Game status (Delayed, Postponed, Suspended, Final…) and reason (Rain, Inclement Weather, …)</td>
+          <td>MLB StatsAPI schedule <code>status.detailedState</code> / <code>statusCode</code> / <code>reason</code>, cross-referenced with the <code>GET /api/v1/gameStatus</code> registry of 210 status codes.</td>
+          <td>Every game card and feed row links to its Schedule JSON and Gameday page.</td>
+        </tr>
+        <tr>
+          <td>Delay start / resume timeline (when the delay began, what inning, when play resumed)</td>
+          <td>MLB StatsAPI play-by-play <code>playEvents[].details.eventType === "game_advisory"</code> entries carrying <code>startTime</code> / <code>endTime</code>.</td>
+          <td>"Play-by-play JSON" link on each row.</td>
+        </tr>
+        <tr>
+          <td>Official delay duration</td>
+          <td><code>gameInfo.delayDurationMinutes</code> on the schedule, cross-checked with the printed box-score <code>T: 2:50 (3:50 delay)</code> line.</td>
+          <td>"Box score JSON" link; mismatches are flagged 🚩.</td>
+        </tr>
+        <tr>
+          <td>Makeup / resume dates</td>
+          <td><code>rescheduleDate</code>, <code>resumeDate</code>, <code>rescheduledFrom</code>, <code>resumedFrom</code> fields on the schedule.</td>
+          <td>Schedule JSON.</td>
+        </tr>
+        <tr>
+          <td>Hourly forecast & precipitation chance (US ballparks)</td>
+          <td>U.S. National Weather Service: <code>api.weather.gov/points/{lat},{lon}</code> → gridpoints hourly forecast, at the exact coordinates MLB publishes for each venue.</td>
+          <td>"NWS point JSON" / "NWS hourly JSON" links + the human-readable forecast.weather.gov page.</td>
+        </tr>
+        <tr>
+          <td>Active weather alerts (US ballparks)</td>
+          <td>NWS <code>alerts/active?point={lat},{lon}</code> — Severe Thunderstorm / Tornado / Flash Flood Warnings, Winter Storm Warnings, etc.</td>
+          <td>"NWS alerts JSON" link + the alert's own browsable URL.</td>
+        </tr>
+        <tr>
+          <td>Forecast (Rogers Centre / Toronto)</td>
+          <td>Environment and Climate Change Canada GeoMet citypageweather-realtime API (experimental).</td>
+          <td>ECCC JSON link + weather.gc.ca city page.</td>
+        </tr>
+        <tr>
+          <td>Forecast (international venues — Mexico City, London, Tokyo, etc.)</td>
+          <td>Open-Meteo model output, <strong>flagged as non-government</strong> on every row.</td>
+          <td>Open-Meteo JSON link — always verify manually.</td>
+        </tr>
+        <tr>
+          <td>Written reports / headlines mentioning delays or weather</td>
+          <td>GitHub Actions scans public RSS feeds from MLB.com (league + 30 clubs), ESPN, CBS Sports, Yahoo! Sports, Sports Illustrated, The Athletic and NBC Sports every 15 minutes.</td>
+          <td>Each headline card links to the original article and the publisher RSS feed.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2 id="chat-feed">Chat-style delay feed</h2>
+    <p>The <a href="delays.html">Delay Feed</a> is organized as a live, chat-style feed with the
+    newest and most urgent information at the top:</p>
+    <ul>
+      <li><strong>⏸ DELAYED NOW strip:</strong> any game where MLB's official status currently shows a
+      delay, suspension, or "About to Resume", with the reason and how long it has been going.
+      Expected restart is explicitly labeled "not confirmed by this app" until an official source announces it.</li>
+      <li><strong>Delay rows (⏱):</strong> a row for each delay segment in the play-by-play, with
+      the full timeline of status-change advisories.</li>
+      <li><strong>Postponed / suspended rows (📅):</strong> official reason plus reschedule / resume dates.</li>
+      <li><strong>Forecast rows (🌧):</strong> one per game, with the risk chip, peak precipitation hour,
+      and a collapsible hourly table for the game window.</li>
+      <li><strong>Alert rows (⚠):</strong> active NWS/ECCC weather alerts at the ballpark, grouped by
+      alert ID so one warning covering multiple parks appears once with all affected games listed.</li>
+      <li><strong>Observed rows (👁):</strong> status flips this browser noticed between polls —
+      labeled with the browser's clock, never as an official timestamp.</li>
+      <li><strong>Written reports inbox:</strong> publisher headlines matching delay/weather keywords,
+      refreshed from the server-side RSS snapshot every minute.</li>
+    </ul>
+
+    <h2 id="weather">Weather integration</h2>
+    <p>Every game card on the scoreboard and every forecast row on the feed shows:</p>
+    <ul>
+      <li>A <strong>forecast-risk chip</strong> (⛈ High / 🌧 Moderate / 🌦 Low / ☀ Clear / 🏟 Covered / ❔ No data)
+      derived from fixed, printed rules (see below). The rules are also displayed on every game page.</li>
+      <li>The <strong>worst hour</strong> in the game window (precipitation chance + short forecast + park time).</li>
+      <li>Count of <strong>active NWS alerts</strong>, with severe warnings highlighted in red.</li>
+      <li>MLB's own <strong>game-time weather string</strong> (condition, temperature, wind) when published.</li>
+      <li><strong>Roof status</strong> (Dome / Retractable — open or closed / Open air), from
+      <code>venue.fieldInfo.roofType</code> and MLB's weather string.</li>
+    </ul>
+    <p>The forecast-risk rules are:</p>
+    <ul>
+      <li><strong>HIGH</strong> — max hourly precipitation chance ≥ 60% in the game window, or thunderstorms with ≥ 40% chance, or an active Tornado / Severe Thunderstorm / Flash Flood <em>Warning</em> at the ballpark.</li>
+      <li><strong>MODERATE</strong> — max chance 30–59%, or any thunderstorm mention, or an active <em>Watch / Advisory</em>.</li>
+      <li><strong>LOW</strong> — 10–29% with no thunderstorms.</li>
+      <li><strong>NONE</strong> — below 10%.</li>
+      <li><strong>COVERED</strong> — fixed dome, or retractable roof reported closed by MLB.</li>
+      <li><strong>UNKNOWN</strong> — no forecast could be fetched (reason shown).</li>
+    </ul>
+    <p>The game window is one hour before scheduled first pitch to four hours after (or to the final out once the game is complete).</p>
+
+    <h2 id="reports">Written reports — what is and isn't done</h2>
+    <div class="callout callout-warn">
+      <p><strong>Important:</strong> Headlines in the written-reports inbox are <em>not</em> verified
+      restart times and <em>not</em> matched to specific games. They are a keyword-matched review aid.
+      Always click through to the official article (and ideally the club's own MLB.com page or verified
+      account) before treating a reported restart time as confirmed.</p>
+    </div>
+    <p>What is automated:</p>
+    <ul>
+      <li>RSS feeds are fetched by a scheduled GitHub Action and parsed conservatively (only the standard
+      RSS 2.0 fields: title, link, pubDate, author, description).</li>
+      <li>Items are surfaced when their title or description contains words from a documented delay
+      vocabulary (<code>delay, postponed, suspend, tarp, rainout, resume, inclement, first pitch</code>…)
+      or weather vocabulary (<code>rain, thunder, lightning, storm, tornado, flood, snow, drizzle</code>…).</li>
+      <li>Every headline links to its article and its publisher RSS feed; the exact words that matched
+      are shown on the card so a reviewer can see why it was surfaced.</li>
+      <li>Duplicate URLs are de-duplicated; future-dated, older-than-24h, and dateless items are flagged.</li>
+    </ul>
+    <p>What is <strong>not</strong> automated (see <a href="#limitations">Limitations</a>):</p>
+    <ul>
+      <li>No game/team/date matching — a headline saying "Yankees rained out" could refer to a historical
+      event, a spring training game, or a future doubleheader.</li>
+      <li>No extraction of announced restart times from prose ("hoping to get underway around 8:30" etc.).
+      These require natural-language disambiguation that we deliberately avoid so nothing is hallucinated.</li>
+      <li>No reading of X/Twitter, Facebook, Instagram, Reddit, Threads or Bluesky posts.</li>
+    </ul>
+
+    <h2 id="irregularities">🚩 Flagged irregularities</h2>
+    <p>Whenever two official sources disagree, or an unexpected shape is encountered, the row gets a
+    flag with the rule code and a plain-English explanation. Examples:</p>
+    <ul>
+      <li><code>duration-mismatch</code> — play-by-play delay segments sum to something different from
+      MLB's own <code>delayDurationMinutes</code> figure.</li>
+      <li><code>boxscore-mismatch</code> — the printed box-score delay duration disagrees with the
+      schedule field.</li>
+      <li><code>reason-conflict</code> — detailedState, statusCode letter, and reason field don't agree.</li>
+      <li><code>non-weather</code> — a delay whose reason is Power, Injury, Ceremony, etc. (still shown, just labeled).</li>
+      <li><code>nws-no-coverage</code> / <code>non-government-source</code> — the venue falls back to
+      ECCC or Open-Meteo.</li>
+      <li><code>mlb-wet-forecast-dry</code> / <code>mlb-dry-forecast-wet</code> — MLB's first-pitch weather
+      string contradicts the government forecast.</li>
+    </ul>
+    <p>Flags are never resolved silently. They stay on the row until a human reviewer checks the sources.</p>
+
+    <h2 id="limitations">Known limitations</h2>
+    <p>This is a useful <strong>partial implementation</strong>, not exhaustive social monitoring.
+    The following are real, current constraints:</p>
+    <ul>
+      <li><span class="limitation-tag">SOCIAL</span><strong>No social-media ingestion.</strong>
+      X/Twitter, Facebook, Instagram, Reddit, Threads and Bluesky do not provide keyless, CORS-enabled
+      public APIs for reading team accounts (verified 2026-09-21). X locked down anonymous reads in 2023;
+      Meta requires app review and user authentication; Reddit's JSON endpoints require a User-Agent and
+      return different data to logged-out browsers. Adding these requires storing server-side credentials
+      (see <a href="#next">Next steps</a>).</li>
+      <li><span class="limitation-tag">ETA</span><strong>No automatic restart-time extraction.</strong>
+      Restart estimates ("first pitch around 8:30") are prose in reporter/club posts and require
+      game/date/timezone disambiguation we do not perform, to avoid fabricating times.</li>
+      <li><span class="limitation-tag">RSS</span><strong>RSS scanning is 15-minute scheduled, not real-time.</strong>
+      GitHub Actions scheduled jobs can be delayed by up to ~15 minutes during load; Pages publishing adds
+      another latency window. This is not a continuous monitoring service.</li>
+      <li><span class="limitation-tag">GEO</span><strong>Some venues have no government forecast coverage.</strong>
+      International venues (London, Mexico City, Santo Domingo, Tokyo) fall back to Open-Meteo model data
+      and are flagged as non-government. The Athletics' temporary Sacramento venue and other special-event
+      parks depend on coordinates MLB publishes; when absent the forecast is flagged <code>no-coordinates</code>.</li>
+      <li><span class="limitation-tag">CORS</span><strong>ECCC GeoMet browser CORS could not be exercised
+      from the build sandbox.</strong> Rogers Centre is coded to fall back to Open-Meteo (flagged) if the
+      ECCC request fails in a real browser.</li>
+      <li><span class="limitation-tag">FEEDS</span><strong>Club RSS feed availability varies.</strong>
+      If a club's feed is down the failure is listed in the snapshot but that club's headlines will not
+      appear until the next successful scan. Always cross-check the club's MLB.com page for active delays.</li>
+      <li><span class="limitation-tag">HISTORY</span><strong>Browser-observed transition history lives
+      only in localStorage</strong> (per date, kept for 7 days). Server-side history of observed delays
+      across all visitors is not retained.</li>
+    </ul>
+
+    <h2 id="next">Work planned for the next session</h2>
+    <ol>
+      <li><strong>Deploy Pages with GitHub Actions source.</strong> The workflow is written but requires
+      a repository administrator to enable "GitHub Actions" as the Pages build source so that the RSS
+      snapshot is built and published automatically instead of showing "unavailable" on the legacy
+      branch-publish mode.</li>
+      <li><strong>Authorized social adapters.</strong> Select supported X/Twitter API access tiers
+      (Basic tier or above), Facebook/Instagram Graph API, and Reddit read-only access. Store
+      credentials <em>only</em> in GitHub Actions secrets (server-side); never ship them to the browser.
+      Use official team accounts as published on each club's MLB.com page; do not assume third-party
+      accounts are verified.</li>
+      <li><strong>Game-linked announcements.</strong> Store immutable source excerpts, canonical URL,
+      publisher, publication time, and exact team/game/date identifiers. Handle doubleheaders,
+      timezones, midnight rollover, revised estimates ("now targeting 8:50"), deleted posts, and
+      conflicting announcements. Abstain on ambiguous matches.</li>
+      <li><strong>ETA extraction.</strong> Only use explicit announcement text (never weather forecasts
+      or scheduled first pitch). Retain quoted evidence, original timezone, and revision history.
+      Add fixture-driven tests per provider before promotion.</li>
+      <li><strong>Always-on ingestion.</strong> Move to a durable scheduler/database for push-like
+      freshness and persistent history. The current GitHub Actions schedule can be delayed or disabled.</li>
+      <li><strong>Browser/accessibility acceptance.</strong> Test mobile layouts, keyboard and
+      screen-reader flows, real-browser CORS for US/Canadian/international parks, timezone behavior,
+      and upstream outages.</li>
+    </ol>
+
+    <h2>Verifying this page yourself</h2>
+    <p>Every row on every page ends with a "Verify" section that links directly to the official JSON
+    or web page the fact was read from. For line-by-line methodology, captured API shapes, and the
+    full audit log, see the <a href="docs/verification.html">verification page</a> and the
+    <a href="docs/implementation-review.md">implementation review</a>. The offline test suite
+    (<code>tools/*-test.mjs</code>) covers the parser, weather normalisation, delay cross-checks,
+    RSS classification, report-snapshot rendering, and DOM rendering against captured fixtures.</p>
+
+    <p style="margin-top: 32px; color: var(--muted); font-size: 12px;">Not affiliated with MLB, MLB Advanced Media,
+    NOAA, Environment and Climate Change Canada, or any news outlet referenced. Team logos © MLB Advanced Media.
+    Weather data is public-domain (NOAA/NWS) or © Environment and Climate Change Canada.</p>
+  </main>
+
+  <footer class="site-footer">
+    <p>
+      <a href="index.html">Scoreboard</a> ·
+      <a href="delays.html">Delay Feed</a> ·
+      <a href="docs/verification.html">Verification log</a> ·
+      <a href="docs/implementation-review.md">Implementation review</a> ·
+      <a href="https://github.com/buffedlizard55-lab/MLBRainDelay">GitHub</a>
+    </p>
+  </footer>
+
+  <script>
+    document.getElementById('build-date').textContent = new Date().toLocaleDateString([],
+      { year: 'numeric', month: 'long', day: 'numeric' });
+  </script>
+</body>
+</html>
