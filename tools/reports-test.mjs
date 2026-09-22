@@ -9,6 +9,11 @@ assert.equal(Reports.prepare(report, now).items.length, 1);
 assert.equal(Reports.prepare(report, now).items[0].epoch, Date.parse('2026-09-21T21:00:00Z'));
 for (const url of ['javascript:alert(1)', 'http://www.mlb.com', 'https://www.mlb.com.evil.test', 'https://evil.test/mlb.com', 'https://user@www.mlb.com']) assert.equal(Reports.safeUrl(url), null);
 assert.equal(Reports.prepare({...report, flagged: [{...item, link: 'javascript:alert(1)'}]}, now).items.length, 0);
+// Reddit post links from the social scanner are canonical www.reddit.com
+// permalinks — allow the exact host, reject lookalikes and other platforms.
+assert.equal(Reports.safeUrl('https://www.reddit.com/r/baseball/comments/abc001/fenway_rain_delay/'), 'https://www.reddit.com/r/baseball/comments/abc001/fenway_rain_delay/');
+for (const url of ['https://reddit.com.evil.test/r/baseball', 'https://www.reddit.com.evil.test/x', 'https://old.reddit.com/r/baseball/comments/x/', 'https://twitter.com/MLB']) assert.equal(Reports.safeUrl(url), null);
+assert.equal(Reports.CATEGORY_LABEL.community, 'Community — NOT official');
 assert.match(Reports.prepare(report, now + 3600000).warnings.join(), /stale/);
 assert.match(Reports.prepare(report, now - 3600000).warnings.join(), /future/);
 assert.match(Reports.prepare({...report, feeds: [{ok:false}]}, now).warnings.join(), /incomplete/);

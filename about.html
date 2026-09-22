@@ -73,9 +73,10 @@
       box-score notes for any game showing a delay.</li>
       <li><strong>Every ~5 minutes</strong> the NWS / ECCC / Open-Meteo forecast at each ballpark is refreshed;
       active weather alerts poll every ~2 minutes.</li>
-      <li><strong>Every 15 minutes</strong> a GitHub Actions workflow scans 40+ RSS feeds (MLB league + 30
-      clubs + major independent outlets) and publishes a JSON snapshot of delay/weather headlines. Your
-      browser refreshes that snapshot once a minute.</li>
+      <li><strong>Every 15 minutes</strong> a GitHub Actions workflow scans the official MLB RSS feeds
+      (league + 30 clubs), 7 independent news outlets, and the r/baseball community feed, then builds a
+      JSON snapshot of delay/weather headlines. Your browser refreshes that snapshot once a minute and
+      shows the latest scan run's status with a direct link to the workflow run.</li>
     </ul>
 
     <h2 id="sources">Sources of truth</h2>
@@ -124,8 +125,8 @@
         </tr>
         <tr>
           <td>Written reports / headlines mentioning delays or weather</td>
-          <td>GitHub Actions scans public RSS feeds from MLB.com (league + 30 clubs), ESPN, CBS Sports, Yahoo! Sports, Sports Illustrated, The Athletic and NBC Sports every 15 minutes.</td>
-          <td>Each headline card links to the original article and the publisher RSS feed.</td>
+          <td>GitHub Actions scans public RSS feeds from MLB.com (league + 30 clubs), ESPN, CBS Sports, Yahoo! Sports, Sports Illustrated, The Athletic and NBC Sports, plus the r/baseball community feed (Reddit's keyless public JSON), every 15 minutes.</td>
+          <td>Each card links to the original article/post and its feed; community posts are labelled "Community — NOT official".</td>
         </tr>
       </tbody>
     </table>
@@ -196,7 +197,11 @@
       event, a spring training game, or a future doubleheader.</li>
       <li>No extraction of announced restart times from prose ("hoping to get underway around 8:30" etc.).
       These require natural-language disambiguation that we deliberately avoid so nothing is hallucinated.</li>
-      <li>No reading of X/Twitter, Facebook, Instagram, Reddit, Threads or Bluesky posts.</li>
+      <li>No reading of X/Twitter, Facebook, Instagram, Threads or Bluesky posts — those platforms
+      have no keyless public read API (re-verified 2026-09-22). <strong>Reddit is attempted</strong>
+      server-side on every scan (its public JSON is keyless); anonymous access from the build network
+      currently answers HTTP 403, so the scan lists it as an unavailable source with a link to the
+      subreddit instead of skipping it. If the network ever allows it, posts flow with no code change.</li>
     </ul>
 
     <h2 id="irregularities">🚩 Flagged irregularities</h2>
@@ -213,6 +218,10 @@
       ECCC or Open-Meteo.</li>
       <li><code>mlb-wet-forecast-dry</code> / <code>mlb-dry-forecast-wet</code> — MLB's first-pitch weather
       string contradicts the government forecast.</li>
+      <li><code>sparse-schedule</code> — the official schedule reports far fewer games for a date than
+      its neighbours (observed live 2026-09-22: 3 games on 2026-09-21 vs 15 on both neighbours). Shown
+      with the counts and a link to that date's schedule JSON; may be a legitimate sparse slate or
+      incomplete schedule data — a reviewer decides.</li>
     </ul>
     <p>Flags are never resolved silently. They stay on the row until a human reviewer checks the sources.</p>
 
@@ -220,12 +229,20 @@
     <p>This is a useful <strong>partial implementation</strong>, not exhaustive social monitoring.
     The following are real, current constraints:</p>
     <ul>
-      <li><span class="limitation-tag">SOCIAL</span><strong>No social-media ingestion.</strong>
-      X/Twitter, Facebook, Instagram, Reddit, Threads and Bluesky do not provide keyless, CORS-enabled
-      public APIs for reading team accounts (verified 2026-09-21). X locked down anonymous reads in 2023;
-      Meta requires app review and user authentication; Reddit's JSON endpoints require a User-Agent and
-      return different data to logged-out browsers. Adding these requires storing server-side credentials
-      (see <a href="#next">Next steps</a>).</li>
+      <li><span class="limitation-tag">SOCIAL</span><strong>Partial social-media ingestion.</strong>
+      <strong>Reddit (r/baseball) is attempted on every scan</strong> — it has the only keyless public
+      read path of the platforms named in the project goals — but anonymous access from the build
+      network answered HTTP 403 on 2026-09-22, so it is reported as an unavailable source (with a link
+      to the subreddit) rather than skipped. X/Twitter, Facebook, Instagram, Threads and Bluesky have no
+      keyless public read API (re-verified 2026-09-22): X locked down anonymous reads in 2023 and Meta
+      requires an authenticated Graph API. Ingesting them requires storing server-side credentials in
+      GitHub Actions secrets — never in the static page (see <a href="#next">Next steps</a>).</li>
+      <li><span class="limitation-tag">PAGES</span><strong>The published snapshot is not deployed until
+      a one-time admin switch.</strong> The repo's GitHub Pages is still on legacy branch publishing,
+      so the workflow-built snapshot (which holds the written reports) is not served on the public site.
+      The workflow cannot switch Pages mode itself (admin-only, HTTP 403). Until a repository owner
+      enables <em>Settings → Pages → Build and deployment → Source: GitHub Actions</em>, the Delay Feed
+      shows the latest scan run's status with a direct link to the run, and prints the exact steps.</li>
       <li><span class="limitation-tag">ETA</span><strong>No automatic restart-time extraction.</strong>
       Restart estimates ("first pitch around 8:30") are prose in reporter/club posts and require
       game/date/timezone disambiguation we do not perform, to avoid fabricating times.</li>

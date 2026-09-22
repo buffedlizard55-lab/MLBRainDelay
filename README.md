@@ -35,10 +35,13 @@ resumed.
   - **👁 observed transitions** — when the page itself sees a game flip to Delayed, resume,
     or get postponed between two polls it logs the moment (clearly labelled as seen by
     this browser, never as an official timestamp) and plays an optional chime;
-  - a **written-reports inbox** of publisher headlines from 40+ RSS feeds (MLB league,
+  - a **written-reports inbox** of publisher headlines from 39 RSS feeds (MLB league,
     30 club feeds, ESPN, CBS Sports, Yahoo! Sports, Sports Illustrated, NBC Sports,
-    The Athletic) flagged for delay/weather keywords, each linked to the original
-    article and labeled as MLB-official or independent reporting;
+    The Athletic) plus the r/baseball community feed (Reddit, labelled **community —
+    NOT official**), each flagged for delay/weather keywords and linked to the original
+    article/post; entries are labeled MLB-official, independent or community, and the
+    section shows the latest scheduled-scan run (status + link to the workflow run)
+    as proof the scanner is alive;
   - a **manual-review panel** of discovery links: league accounts (@MLB, @MLB_PR),
     verified club X/Twitter handles for every team playing today, independent newsrooms,
     government weather sources (NWS radar, SPC outlook, ECCC warnings), and community
@@ -121,24 +124,35 @@ with the code and a plain-language explanation — it is never resolved silently
 | `nws-no-coverage` / `nws-failed` / `no-coordinates` / `eccc-failed` / `non-government-source` / `no-provider` | which weather source answered, and why a fallback was used (or why none could) |
 | `nws-hourly-failed` / `nws-alerts-failed` / `stale` | one NWS product failed while the other loaded, or the last good fetch is being shown after a failed refresh (`stale` is shown as a footnote, not counted as an irregularity) |
 | `pbp-unavailable` / `boxscore-unavailable` | a cross-check source could not be fetched (retried next poll) |
+| `sparse-schedule` | the official schedule reports far fewer games for a date than its neighbours (observed live 2026-09-22: 3 games on 2026-09-21 vs 15 on both neighbours) — shown with the counts and a link to the date's schedule JSON |
 
 ### Social-media / news scanning (what is automated and what is not)
 
-**Social platforms are not scanned.** No X/Twitter, Facebook, Instagram, Reddit,
-or reporter-account integration is configured. Availability depends on platform
-policies and authorized access; we do not claim that other public sources cannot exist.
-Never put API credentials in this static site.
+**Reddit is attempted on every scan.** It is the only platform named in the
+project goals with a keyless public read path (`www.reddit.com/r/baseball/new.json`).
+Anonymous requests from the build network answered HTTP 403 on 2026-09-22, so the
+snapshot lists it as an unavailable source (with a link to the subreddit) instead of
+skipping it — if the egress ever allows it, posts flow with no code change, labelled
+*community (NOT official)*.
+
+**X/Twitter, Facebook, Instagram, Threads and Bluesky are not scanned.** None of
+them provides a keyless public read API (re-verified 2026-09-22); ingesting them
+requires authorized credentials stored server-side. Never put API credentials in this
+static site.
 
 **Written reports are displayed on [the delay feed](delays.html).** The scanner
 requests RSS feeds from MLB (league news + transactions + all 30 clubs), ESPN,
 CBS Sports, Yahoo! Sports, Sports Illustrated, NBC Sports Hardball Talk and The
-Athletic every 15 minutes in GitHub Actions. Deployment and upstream publishing
-latency mean this is not a real-time guarantee. The Pages artifact includes
-`docs/news-report.json`; reports are not committed back to main. The inbox
-refreshes once a minute, shows which words triggered each headline, labels
-articles as MLB-official vs independent reporting, de-duplicates URLs, flags
-old / future / dateless items, and displays per-feed failures and stale
-snapshots. Independent outlets are reporting context, not a team announcement.
+Athletic, plus the r/baseball community feed, every 15 minutes in GitHub Actions.
+Deployment and upstream publishing latency mean this is not a real-time guarantee.
+The Pages artifact includes `docs/news-report.json`; reports are not committed back
+to main. The inbox refreshes once a minute, shows which words triggered each
+headline, labels articles as MLB-official, independent or community, de-duplicates
+URLs, flags old / future / dateless items, and displays per-source failures and
+stale snapshots. It also shows the latest scheduled-scan run (status + link to the
+workflow run) so a reviewer can see the scanner is alive. Independent outlets are
+reporting context and community posts are fan discussion — neither is a team
+announcement.
 
 Headlines remain review candidates across all dates, **not verified game-specific
 restart reports**. No automated game/date/doubleheader matching or reliable extraction
@@ -165,12 +179,11 @@ assets/js/reports.js  Written-reports renderer (safe, categorized, de-duplicated
 assets/js/scoreboard.js · delay-feed.js · game.js   Page controllers
 assets/js/ui.js       DOM helpers, chips, logos
 tools/fixtures/       Captured, verified API payloads (each has _source / _verified)
-tools/*-test.mjs      Offline test suites (run in Node, no network) — 75 passing assertions
-tools/news-scan.mjs   RSS scanner (league + 30 clubs + 7 independent outlets) → docs/news-report.json
+tools/*-test.mjs      Offline test suites (run in Node, no network) — 90+ passing assertions
+tools/news-scan.mjs   News + community scanner (league + 30 clubs + 7 outlets + r/baseball) → snapshot
 docs/verification.md  Line-by-line verification log with the URLs used
 docs/verification.html  Same, rendered for the site footer
 docs/implementation-review.md  Audit log and next-session plan
-docs/workflows/       Optional GitHub Actions (Pages deploy, offline tests)
 ```
 
 ## Run it locally
@@ -185,10 +198,11 @@ Open <http://localhost:8000>. The offline, network-free checks:
 
 ```bash
 for f in assets/js/*.js; do node --check "$f"; done
-node tools/delays-test.mjs    # 26 — status registry, advisories, timeline, box score, cross-checks, transitions
-node tools/weather-test.mjs   # 24 — NWS / ECCC / Open-Meteo normalisation, alert classes, risk rules, provider chain
-node tools/news-test.mjs      # 11 — official-news RSS parsing + delay/weather vocabulary classification
-node tools/render-test.mjs    #  6 — scoreboard + delay feed + game page rendered against captured payloads
+node tools/delays-test.mjs    # 30 — status registry, advisories, timeline, box score, cross-checks, transitions, sparse schedule
+node tools/weather-test.mjs   # 25 — NWS / ECCC / Open-Meteo normalisation, alert classes, risk rules, provider chain
+node tools/news-test.mjs      # 24 — RSS + Reddit social parsing, delay/weather vocabulary classification, feed config
+node tools/render-test.mjs    #  8 — scoreboard + delay feed + game page rendered against captured payloads
+node tools/reports-test.mjs   #   — report URL safety, community category, dedup, stale/future/failed checks
 ```
 
 Run the news scan locally (needs outbound network — works in GitHub Actions):
@@ -232,9 +246,17 @@ this is not a continuous monitoring service.
 See the [About page](about.html#limitations) and
 [`docs/implementation-review.md`](docs/implementation-review.md) for the full list. In short:
 
-- **No social-media ingestion.** X/Twitter, Facebook, Instagram, Reddit, Threads and Bluesky
-  do not provide keyless, CORS-enabled public APIs (verified 2026-09-21). Verified club
-  accounts are linked as discovery links for manual review but are not read automatically.
+- **Partial social-media ingestion.** Reddit (r/baseball) is the only named platform with a
+  keyless public read path and is attempted on every scan, but anonymous access from the build
+  network answered HTTP 403 on 2026-09-22, so it is reported as an unavailable source (with a link
+  to the subreddit) rather than skipped. X/Twitter, Facebook, Instagram, Threads and Bluesky have
+  no keyless public read API (re-verified 2026-09-22) and are linked as discovery links for manual
+  review, not read automatically.
+- **The published snapshot needs a one-time admin switch.** The repo's GitHub Pages is still on
+  legacy branch publishing, so the workflow-built snapshot (written reports) is not served publicly.
+  The workflow cannot switch Pages mode itself (admin-only). Enable
+  **Settings → Pages → Build and deployment → Source: GitHub Actions**; until then the Delay Feed
+  shows the latest scan run's status with a link to the run and prints the exact steps.
 - **No automatic restart-time extraction.** Expected start / restart times are never
   inferred from scheduled first pitch, forecast clearing times or reporter speculation.
 - **RSS scanning is ~15-minute scheduled, not real-time.** GitHub Actions scheduling and

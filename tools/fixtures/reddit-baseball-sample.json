@@ -1,0 +1,79 @@
+{
+  "_source": "SYNTHETIC — response shape per the public Reddit API (https://www.reddit.com/dev/api/). Live anonymous access from the build network returned HTTP 403 on 2026-09-22, so no captured live payload exists; the structure (kind/data/children[].data fields) is documented and stable.",
+  "_verified": "2026-09-22",
+  "kind": "Listing",
+  "data": {
+    "after": "t3_abc003",
+    "before": null,
+    "children": [
+      {
+        "kind": "t3",
+        "data": {
+          "id": "abc001",
+          "title": "Fenway rain delay: tarp down, game suspended",
+          "permalink": "/r/baseball/comments/abc001/fenway_rain_delay_tarp_down_game_suspended/",
+          "url": "https://www.reddit.com/r/baseball/comments/abc001/fenway_rain_delay_tarp_down_game_suspended/",
+          "author": "testfan",
+          "created_utc": 1789970000,
+          "selftext": "Tarp is down at Fenway. Manager says they\u2019ll wait for rain to stop, possible postponement if it keeps going.",
+          "num_comments": 42,
+          "upvote_ratio": 0.91
+        }
+      },
+      {
+        "kind": "t3",
+        "data": {
+          "id": "abc002",
+          "title": "Anyone else watching the lightning over Wrigley?",
+          "permalink": "/r/baseball/comments/abc002/anyone_else_watching_the_lightning_over_wrigley/",
+          "url": "https://www.reddit.com/r/baseball/comments/abc002/anyone_else_watching_the_lightning_over_wrigley/",
+          "author": "anotherfan",
+          "created_utc": 1789969000,
+          "selftext": "Clouds rolled in fast. Could see lightning from my apartment, expecting a weather delay any minute.",
+          "num_comments": 17,
+          "upvote_ratio": 0.88
+        }
+      },
+      {
+        "kind": "t3",
+        "data": {
+          "id": "abc003",
+          "title": "Hot take: the new sign-stealing display is fine",
+          "permalink": "/r/baseball/comments/abc003/hot_take_the_new_sign_stealing_display_is_fine/",
+          "url": "https://www.reddit.com/r/baseball/comments/abc003/hot_take_the_new_sign_stealing_display_is_fine/",
+          "author": "hottaker",
+          "created_utc": 1789968000,
+          "selftext": "It just gives fans a play-by-play. Nobody gets hurt.",
+          "num_comments": 200,
+          "upvote_ratio": 0.51
+        }
+      },
+      {
+        "kind": "t3",
+        "data": {
+          "id": "abc004",
+          "permalink": "/r/baseball/comments/abc004/no_title_post/",
+          "author": "ghost",
+          "created_utc": 1789967000,
+          "selftext": "rain rain rain",
+          "num_comments": 1,
+          "upvote_ratio": 0.5
+        }
+      },
+      {
+        "kind": "t3",
+        "data": {
+          "id": "abc005",
+          "title": "Post with a link flair",
+          "permalink": "/r/baseball/comments/abc005/post_with_a_link_flair/",
+          "url": "https://www.example.com/outbound-link-target",
+          "author": "linker",
+          "created_utc": 1789966000,
+          "selftext": "Check out the storm coverage: <script>alert(1)</script> heavy rain forecast tonight",
+          "num_comments": 3,
+          "upvote_ratio": 0.7
+        }
+      }
+    ]
+  }
+}

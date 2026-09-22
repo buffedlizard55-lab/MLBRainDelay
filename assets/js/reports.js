@@ -13,15 +13,20 @@ const Reports = (() => {
     'www.si.com', 'si.com',
     'feeds.theathletic.com', 'theathletic.com', 'www.theathletic.com',
     'mlb.nbcsports.com', 'www.nbcsports.com', 'nbcsports.com',
+    // Reddit post links emitted by the scanner are always subreddit permalinks
+    // (https://www.reddit.com/r/...); allow the canonical host only.
+    'www.reddit.com', 'reddit.com',
   ]);
 
   const CATEGORY_LABEL = {
     official: 'MLB official',
     wire: 'Independent reporting',
+    community: 'Community — NOT official',
   };
   const CATEGORY_CLS = {
     official: 'report-cat-official',
     wire: 'report-cat-wire',
+    community: 'report-cat-community',
   };
 
   function safeUrl(value) {
@@ -62,9 +67,12 @@ const Reports = (() => {
     const feedsOk = report.feeds.filter(f => f.ok).length;
     const officialCount = report.feeds.filter(f => f.ok && f.category === 'official').length;
     const wireCount = report.feeds.filter(f => f.ok && f.category === 'wire').length;
+    const communityCount = report.feeds.filter(f => f.ok && f.category === 'community').length;
+    const statBits = [`${officialCount} official MLB`, `${wireCount} independent`];
+    if (communityCount) statBits.push(`${communityCount} community`);
     root.appendChild(UI.el('p', 'feed-desc',
-      `Snapshot: ${new Date(report.generatedAt).toLocaleString()} · ${feedsOk}/${report.feeds.length} feeds responding ` +
-      `(${officialCount} official MLB · ${wireCount} independent). Times below are publication times — not game start or restart times.`
+      `Snapshot: ${new Date(report.generatedAt).toLocaleString()} · ${feedsOk}/${report.feeds.length} sources responding ` +
+      `(${statBits.join(' · ')}). Times below are publication times — not game start or restart times.`
     ));
 
     // Warnings
@@ -150,17 +158,65 @@ const Reports = (() => {
     }
   }
 
+  /* The published snapshot is built by the "Refresh reports and deploy
+   * Pages" workflow. Its latest run is public on the GitHub API (no token,
+   * CORS open for public data) — showing it gives a reviewer direct evidence
+   * that the scan is running, plus a link to the run, even when the snapshot
+   * itself has not been published yet (e.g. while the repo's Pages still
+   * uses branch publishing instead of the workflow artifact). */
+  const REPO = 'buffedlizard55-lab/MLBRainDelay';
+  const SCAN_WORKFLOW = 'Refresh reports and deploy Pages';
+  let lastScanStatusAt = 0;
+
+  async function refreshScanStatus() {
+    const root = document.getElementById('scan-status');
+    if (!root) return;
+    if (Date.now() - lastScanStatusAt < 15 * 60000 && root.childNodes.length) return;
+    try {
+      const res = await fetch(`https://api.github.com/repos/${REPO}/actions/runs?branch=main&per_page=10`, {
+        cache: 'no-store', signal: AbortSignal.timeout(15000), headers: { Accept: 'application/vnd.github+json' },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const runs = Array.isArray(data.workflow_runs) ? data.workflow_runs : [];
+      // Only the scan workflow itself counts — falling back to another
+      // workflow's run would mislabel its status as the scan status.
+      const run = runs.find((r) => r.name === SCAN_WORKFLOW);
+      if (!run) throw new Error('no scan runs published yet');
+      lastScanStatusAt = Date.now();
+      UI.clear(root);
+      const p = UI.el('p', 'scan-status-line');
+      const icon = run.conclusion === 'success' ? '✅' : run.conclusion === 'failure' ? '❌' : '⏳';
+      p.appendChild(document.createTextNode(
+        `Automated source scan: last run ${new Date(run.updated_at).toLocaleString()} · ${icon} ${run.conclusion || run.status} · `));
+      p.appendChild(UI.el('a', 'source-link', 'view run (workflow log & snapshot artifact)', {
+        href: run.html_url, target: '_blank', rel: 'noopener',
+      }));
+      root.appendChild(p);
+    } catch (err) {
+      UI.clear(root).appendChild(UI.el('p', 'scan-status-line',
+        `Automated scan status unavailable (${err.message}). The scan workflow is ` +
+        `“${SCAN_WORKFLOW}” in this repository's Actions tab.`));
+    }
+  }
+
   async function refresh() {
     const root = document.getElementById('written-reports');
     if (!root) return;
+    refreshScanStatus();
     try {
       const response = await fetch(`docs/news-report.json?t=${Date.now()}`, { cache: 'no-store', signal: AbortSignal.timeout(20000) });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) throw Object.assign(new Error(`HTTP ${response.status}`), { status: response.status });
       render(await response.json(), root);
     } catch (err) {
-      UI.clear(root).appendChild(UI.el('p', 'report-warning',
-        `Written reports unavailable (${err.message}). No claim about delay status can be made from this missing snapshot. ` +
-        'The server-side RSS scan runs every 15 minutes via GitHub Actions; check the official club links above in the meantime. Retrying automatically.'));
+      const base = `Written reports unavailable (${err.message}). No claim about delay status can be made from this missing snapshot. ` +
+        'The server-side scan runs every 15 minutes via GitHub Actions; check the official club links above in the meantime. Retrying automatically.';
+      const extra = err.status === 404
+        ? ' The published snapshot file is missing because this repository\'s GitHub Pages is still set to branch publishing. ' +
+          'The scan itself runs on schedule (see the run link above; its artifact holds the full snapshot). ' +
+          'Repository owner: enable Settings → Pages → Build and deployment → Source: GitHub Actions to publish the snapshot here.'
+        : '';
+      UI.clear(root).appendChild(UI.el('p', 'report-warning', base + extra));
     }
   }
 

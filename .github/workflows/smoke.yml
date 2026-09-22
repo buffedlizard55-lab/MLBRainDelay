@@ -1,9 +1,10 @@
 name: Offline parser & render tests
 
-# Optional: copy this file to .github/workflows/smoke.yml to run the suite in
-# GitHub Actions on every push / PR and nightly. All three scripts are offline —
-# they run against captured, verified StatsAPI / NWS / ECCC payloads in
-# tools/fixtures/ — so they never depend on upstream availability or rate limits.
+# Runs the offline suite on every push / PR and nightly. All scripts are
+# offline — they run against captured, verified StatsAPI / NWS / ECCC payloads
+# in tools/fixtures/ — so they never depend on upstream availability or rate
+# limits. The live scan+deploy workflow (news-scan.yml) re-runs this same
+# suite before building the Pages artifact.
 
 on:
   push:

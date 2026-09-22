@@ -102,11 +102,14 @@ environment and is therefore surfaced as a flag or a footnote in the UI.
 | The news scanner (`tools/news-scan.mjs`) flags a headline only when its verbatim title/description contains a word from the documented `DELAY_WORDS` / `WEATHER_WORDS` lists, records the matched words and the article link, and reports per-feed failures | ✅ tested | `tools/news-test.mjs` (11 assertions): parsed channel/item fields verbatim from a captured structure, drops untitled items, decodes CDATA/entities, flags only matching items and never the plain ones, and asserts the 32-feed configuration (league + ESPN + 30 clubs). |
 
 The scanner is **server-side by design**: the browser cannot read these feeds
-(no CORS guarantee) and the social platforms have no anonymous read path, so the
-scheduled `.github/workflows/news-scan.yml` (GitHub Actions, every 6 h) runs it
-and writes `docs/news-report.json`. It never asserts that a delay happened —
-only that a headline mentions delay/weather vocabulary, with the link for a
-human to open.
+(no CORS guarantee), so the scheduled `.github/workflows/news-scan.yml`
+(GitHub Actions, every 15 minutes + on main pushes) runs it and builds the
+Pages artifact containing `docs/news-report.json` (read-only repository
+permissions; nothing is committed back to main). It never asserts that a
+delay happened — only that a headline or community post mentions delay/weather
+vocabulary, with the link for a human to open. Reddit (the only named social
+platform with a keyless public read path) is attempted on every scan and
+reported per source — see §11.
 
 ## 6. Design parity with MLB-Live-PBP
 
@@ -230,14 +233,15 @@ $ node tools/render-test.mjs     #  6 passed  (assertions extended)
 
 ### 9.4 CI
 
-`docs/workflows/smoke.yml` was enabled in `.github/workflows/smoke.yml`: the
-four offline suites (syntax check + 67 assertions) now run on every push,
-pull request and nightly (04:17 UTC). They are fully offline — captured,
-verified payloads in `tools/fixtures/` — so they never depend on upstream
-availability or rate limits. The Pages workflow (`docs/workflows/pages.yml`)
-remains optional: this repo is already published from `main` / `(root)` via
-GitHub Pages settings, and enabling the Actions-based deploy at the same time
-would double-deploy.
+`.github/workflows/smoke.yml` runs the four offline suites (syntax check +
+all `tools/*-test.mjs` assertions) on every push, pull request and nightly
+(04:17 UTC). They are fully offline — captured, verified payloads in
+`tools/fixtures/` — so they never depend on upstream availability or rate
+limits. The live scan + deploy workflow `.github/workflows/news-scan.yml`
+re-runs the same suites before building the Pages artifact every 15 minutes
+and on main pushes. (Earlier copies of these templates lived in
+`docs/workflows/`; they were removed on 2026-09-22 because the live
+workflows in `.github/workflows/` are the only source of truth.)
 
 ---
 
@@ -279,42 +283,104 @@ real run happens in GitHub Actions, where egress exists.
 
 ---
 
+## 11. Pass 6 — fourth session (2026-09-22): full re-verification, sparse-schedule flag, Reddit scan attempt, Pages deployment blocker
+
+**Date:** 2026-09-22 (early morning UTC / evening 2026-09-21 US time). Every
+row below was re-fetched live through the page fetcher; the sandbox shell has
+no outbound network (curl fails), which is disclosed, not worked around.
+
+### 11.1 Live re-verification (2026-09-22)
+
+| Check | Official source (live URL → value) | Result |
+|---|---|---|
+| Today's slate 2026-09-22 | `schedule?sportId=1&date=2026-09-22&fields=…` → 16 games, all `S`/`Scheduled` (as of 03:35Z) | ✅ matches the deployed scoreboard's date handling |
+| **Sparse slate 2026-09-21** | `schedule?sportId=1&date=2026-09-21&fields=…` → **3 games** (824787 Final, 824221 Final, 823169 In Progress); same 3 games via `startDate=2026-09-21&endDate=2026-09-21` — **both API forms agree** | ✅ upstream irregularity, now flagged by the new `sparse-schedule` rule (§11.2 #1) |
+| Neighbour slates for comparison | 2026-09-20 → 15 games; 2026-09-19 → 15 games; 2026-09-22 → 16 games | ✅ the 3-game day is an outlier in both directions |
+| Status registry (spot check of the 210-row fixture) | `gameStatus` live: `PR` "Delayed Start: Rain" (`reason "Rain"`), `PW` Warmup, `IH` "Instant Replay" (`reason "Review"`), `IT` "Delayed: Tiebreaker" (`reason "Tiebreaker"`), `IZ` "Delayed: About to Resume", `MF/MA/MU/…` manager-challenge family | ✅ matches `tools/fixtures/game-status-registry.json` |
+| NWS point, Rate Field | `api.weather.gov/points/41.83,-87.6342` → `LOT/76,71`, radar `KLOT`, `America/Chicago` | ✅ unchanged from §2 |
+| NWS hourly, LOT/76,71 | `generatedAt 2026-09-22T03:37:10Z`; overnight periods PoP 9–13%, "Cloudy"/"Mostly Cloudy" | ✅ shape + values as documented |
+| NWS active alerts, Rate Field | **one live feature**: `Beach Hazards Statement` (Lakeshore, NWS Chicago IL, severity Moderate) | ✅ live exercise of the ignore list: `beach` product is classified `ignored` and correctly does **not** raise a ballpark alert or risk level |
+| ECCC GeoMet, Toronto | `citypageweather-realtime/items?f=json&lang=en&limit=10&bbox=…` → `on-128` Toronto Island, `lastUpdated 2026-09-22T03:01:12Z`, current 14.1 °C "Mostly Cloudy", wind NE 33 km/h, bilingual `forecastGroup.forecasts[]` | ✅ shape re-verified (server side) |
+| Open-Meteo fallback (non-US park, Tokyo) | `api.open-meteo.com/v1/forecast?latitude=35.6939&longitude=139.7489&hourly=…&timeformat=unixtime&timezone=UTC` (the exact URL the code builds) → `hourly.time[]` epoch seconds, `precipitation_probability[]`, WMO `51` (Light drizzle) appears | ✅ shape verified live with the production parameter set |
+| MLB league RSS | `mlb.com/feeds/news/rss.xml` → HTTP 200, freshest item `Tue, 22 Sep 2026 03:35:45 GMT` | ✅ keyless-readable |
+| ESPN MLB RSS | `espn.com/espn/rss/mlb/news` → HTTP 200, fresh items; pubDates use `EST` zone notation in September | ✅ parsed exactly as published (`EST` → UTC−5); the scanner interprets the zone the feed states and never invents an offset |
+| Reddit anonymous | `www.reddit.com/r/baseball/new.json`, `api.reddit.com/…`, `old.reddit.com/…/.json` → HTTP **403** (three host variants) | ✅ blocked from this egress; the scanner reports it per source instead of skipping |
+| GitHub Pages mode | `GET /repos/buffedlizard55-lab/MLBRainDelay/pages` → `build_type "legacy"`, source `main`/`/`; `PUT …/pages build_type=workflow` → **403 "Resource not accessible by integration"** (admin-only) | ✅ confirms the published-snapshot blocker (§11.2 #3, Limitations #2) |
+| Deployed site, 2026-09-21 slate | `https://buffedlizard55-lab.github.io/MLBRainDelay/index.html` renders "3 games · 1 in progress · 0 delayed now" with "⏱ 47m official delay · first pitch 7:22 PM (+47m)" for 824787; `docs/news-report.json` → 404 | ✅ site live; inbox 404 explained by the legacy Pages mode above |
+
+### 11.2 Findings and fixes this pass
+
+| # | Finding | Fix |
+|---|---|---|
+| 1 | The official schedule reported **3 games for 2026-09-21 while both neighbours reported 15** — an upstream data irregularity the site displayed silently. | New `sparse-schedule` irregularity flag: a date reporting ≤ 8 games while an adjacent day reports ≥ 4 more (or 0 games with an adjacent day of ≥ 8) shows a 🚩 note with the counts and a link to that date's schedule JSON, on both the scoreboard and the delay feed. Pure function `Delays.sparseScheduleFlag()` (4 unit tests); one lightweight sweep per neighbour, cached per session; a failed neighbour fetch means "no comparison", never a false flag. |
+| 2 | Reddit — the only named social platform with a keyless public API — was documented as blocked but **never actually attempted** by the scanner. | `tools/news-scan.mjs` now attempts `r/baseball/new.json` (keyless) on every 15-minute scan, classifies posts with the same transparent word lists, labels them **community (NOT official)**, and reports a 403 as an explicit per-source failure with a link to the subreddit. 8 new offline tests + a labelled-synthetic fixture (live capture impossible while 403). If the egress ever allows it, data flows with no code change. |
+| 3 | The public site's written-reports inbox was 404: Pages is on legacy branch publishing, so the workflow-built snapshot never reached the public site, and the workflow cannot switch Pages mode itself (403, admin-only). | The delay feed's reports section now shows the **latest scan run** (time, status, direct link to the run and its artifact) from the public GitHub API, and when the snapshot is 404 it prints the exact admin steps (Settings → Pages → Source: GitHub Actions) instead of a generic "unavailable". |
+| 4 | Stale copies of the workflow templates in `docs/workflows/` could mislead a reviewer about what is actually deployed. | Removed; `.github/workflows/smoke.yml` header updated; README structure list updated. |
+| 5 | `reports.js` snapshot header and category handling only knew `official`/`wire`. | Added the `community` category (labelled "Community — NOT official", distinct badge) and the `www.reddit.com` host to the URL allowlist (lookalike hosts rejected, tested). |
+
+### 11.3 Test evidence
+
+```
+$ for f in assets/js/*.js; do node --check "$f"; done      # clean
+$ node tools/delays-test.mjs     # 30 passed  (+4 sparse-schedule)
+$ node tools/weather-test.mjs    # 25 passed
+$ node tools/news-test.mjs       # 24 passed  (+8 social/Reddit)
+$ node tools/render-test.mjs     # 8 passed
+$ node tools/reports-test.mjs    # passed     (+5 reddit URL safety / community label)
+```
+
+---
+
 ## Limitations and remaining work
 
-1. **Social-media scanning is not possible keyless, and is not done.** Twitter/X,
-   Facebook and Instagram have no keyless read API; Reddit's JSON/RSS endpoints answer
-   HTTP 403 to anonymous requests (verified 2026-09-21). Reading them would need paid
-   API credentials stored server-side. **Official-news scanning is done instead**:
-   the publicly readable MLB.com league/club RSS and ESPN MLB RSS feeds are scanned by
-   the scheduled `news-scan` workflow into `docs/news-report.json` (see §5). What remains
-   impossible from a storeless static page: the social feeds themselves, and any "post
-   text" that is not in a public RSS feed.
-2. **ECCC browser CORS unverified** (see §3 and §9.1). The *server* side of the
-2. **ECCC browser CORS unverified** (see §3 and §9.1). The *server* side of the
-   exact code URL was verified live on 2026-09-21 (FeatureCollection with the
-   documented shape). The remaining check is browser CORS from a user's machine
-   on a day the Blue Jays play: if the chip reads "Open-Meteo (model)" with
-   `eccc-failed`, the fix is either a proxy or ECCC's `alerts`/`weather`
-   collections that do send CORS headers.
-3. **Live end-to-end run** — partially closed on 2026-09-21 (§9.1): the
-   deployed site's rendered output (the page's own JavaScript executed in a
-   real browser by the verification tooling) was diffed field-by-field against
-   the raw official payloads for the full 2026-09-21 slate (schedule, NWS
-   point/hourly/alerts at Camden Yards, ECCC, box score, status registry).
-   What remains: an interactive user-side check of polling behaviour (5 s
-   status sweep, weather refresh, chime) on a day with an active delay, since
-   today's slate had no in-progress game.
-4. **Venue coordinates** come from MLB's venue record; special-event venues (Mexico
-   City 5340, Santo Domingo 3049, and others without `defaultCoordinates`) show
-   `no-coordinates`. Sutter Health Park (Athletics, id 2529) does have coordinates.
-5. **Lightning specifically** — NWS does not publish a per-point lightning feed; thunder
-   is detected from the hourly `shortForecast` wording and from Severe Thunderstorm
-   products. Ballpark lightning-detection systems are not public.
-6. **Risk chip is a threshold reading, not a prediction.** Delay decisions belong to the
-   umpires and the home club; a HIGH chip with no delay is not an error.
-7. **Suspended-game `resumeDate` / `resumedFrom` fields** were not observed live this
-   season; they are read defensively and shown when present.
-8. **History depth** — the feed shows one date at a time (like the reference site); a
-   season-wide list of every delay would need a scheduled job that snapshots
-   `schedule?startDate…endDate&hydrate=gameInfo` into the repo.
-9. **Notifications** — the chime only sounds while the tab is open; there is no push.
+1. **Social-media scanning is only partially possible keyless.** Among the
+   platforms named in the project goals, only Reddit exposes a keyless public
+   read path, and it is attempted server-side on every 15-minute scan — but
+   anonymous requests from datacenter/CI egress answered HTTP 403 on
+   2026-09-22 (re-verified), so the snapshot currently lists it as an
+   unavailable source with a link to the subreddit rather than silently
+   skipping it. X/Twitter, Facebook, Instagram, Threads and Bluesky have no
+   keyless read API (re-verified 2026-09-22); ingesting them would need paid,
+   authorized credentials stored server-side (never in the static page).
+   **News scanning is fully done**: the MLB league + 30-club RSS feeds and 7
+   independent outlets are scanned by the scheduled `news-scan` workflow into
+   the published snapshot (see §5 and §11).
+2. **The published snapshot is not deployed until a one-time admin switch.**
+   The repo's GitHub Pages is still on **branch publishing** (legacy), which
+   serves `main` as-is — so `docs/news-report.json` (built only inside the
+   workflow artifact) 404s on the public site. The workflow's attempt to
+   switch Pages to the GitHub Actions build type is refused (HTTP 403, admin
+   only). Until **Settings → Pages → Build and deployment → Source: GitHub
+   Actions** is enabled, the delay feed shows the latest scan run (status +
+   link) and the exact steps instead of pretending the inbox is live.
+3. **ECCC browser CORS unverified** (see §3 and §9.1). The *server* side of
+   the exact code URL was verified live on 2026-09-21 and re-verified on
+   2026-09-22 (FeatureCollection with the documented shape). The remaining
+   check is browser CORS from a user's machine on a day the Blue Jays play:
+   if the chip reads "Open-Meteo (model)" with `eccc-failed`, the fix is
+   either a proxy or ECCC's `alerts`/`weather` collections that do send CORS
+   headers.
+4. **Live end-to-end run** — the deployed site's rendered output (the page's
+   own JavaScript executed in a real browser by the verification tooling) was
+   diffed field-by-field against the raw official payloads for the 2026-09-21
+   slate (§9.1) and spot-checked again on 2026-09-22 (§11.1). What remains:
+   an interactive user-side check of polling behaviour (5 s status sweep,
+   weather refresh, chime) on a day with an active delay.
+5. **Venue coordinates** come from MLB's venue record; special-event venues
+   (Mexico City 5340, Santo Domingo 3049, and others without
+   `defaultCoordinates`) show `no-coordinates`. Sutter Health Park (Athletics,
+   id 2529) does have coordinates.
+6. **Lightning specifically** — NWS does not publish a per-point lightning
+   feed; thunder is detected from the hourly `shortForecast` wording and from
+   Severe Thunderstorm products. Ballpark lightning-detection systems are not
+   public.
+7. **Risk chip is a threshold reading, not a prediction.** Delay decisions
+   belong to the umpires and the home club; a HIGH chip with no delay is not
+   an error.
+8. **Suspended-game `resumeDate` / `resumedFrom` fields** were not observed
+   live this season; they are read defensively and shown when present.
+9. **History depth** — the feed shows one date at a time (like the reference
+   site); a season-wide list of every delay would need a scheduled job that
+   snapshots `schedule?startDate…endDate&hydrate=gameInfo` into the repo.
+10. **Notifications** — the chime only sounds while the tab is open; there is
+    no push.
