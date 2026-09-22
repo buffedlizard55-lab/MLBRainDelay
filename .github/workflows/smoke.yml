@@ -43,3 +43,6 @@ jobs:
 
       - name: Validate written report safety and freshness
         run: node tools/reports-test.mjs
+
+      - name: Validate deterministic headline↔game matching and restart-time quotes
+        run: node tools/match-test.mjs

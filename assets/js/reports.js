@@ -36,7 +36,7 @@ const Reports = (() => {
     } catch (_) { return null; }
   }
 
-  function prepare(report, now = Date.now()) {
+  function prepare(report, now = Date.now(), games = null) {
     if (!report || !Array.isArray(report.flagged) || !Array.isArray(report.feeds) || !Number.isFinite(Date.parse(report.generatedAt))) {
       throw new Error('Invalid report format');
     }
@@ -48,7 +48,7 @@ const Reports = (() => {
     if (failures.length) warnings.push(`${failures.length} of ${report.feeds.length} feeds unavailable; coverage is incomplete. See the per-feed list below.`);
     const seen = new Set();
     let rejected = 0;
-    const items = report.flagged.filter(item => {
+    let items = report.flagged.filter(item => {
       if (!item || !safeUrl(item.link) || !safeUrl(item.feedUrl)) { rejected++; return false; }
       if (seen.has(item.link)) return false;
       seen.add(item.link);
@@ -56,11 +56,25 @@ const Reports = (() => {
     }).map(item => ({ ...item, epoch: Date.parse(item.pubDate) || null }));
     if (rejected) warnings.push(`${rejected} entries omitted because their source links were missing or outside the publisher allowlist.`);
     items.sort((a, b) => (b.epoch || 0) - (a.epoch || 0));
+    // Deterministic game linking + restart-time quotes when a slate is provided.
+    // Match is optional so the inbox still renders on pages that do not load it.
+    if (games && typeof Match !== 'undefined' && typeof Match.annotate === 'function') {
+      items = Match.annotate(items, games);
+      const matched = items.filter((i) => i.match && i.match.status === 'matched').length;
+      const withTime = items.filter((i) => i.announcedTimes && i.announcedTimes.length).length;
+      if (matched || withTime) {
+        warnings.push(
+          `Deterministic linker: ${matched} headline${matched === 1 ? '' : 's'} matched to a game on today's slate` +
+          (withTime ? `; ${withTime} with an explicit restart/first-pitch time quote` : '') +
+          '. Matches and quotes are review aids — open the article to confirm.'
+        );
+      }
+    }
     return { items, warnings, failures };
   }
 
-  function render(report, root) {
-    const data = prepare(report);
+  function render(report, root, games = null) {
+    const data = prepare(report, Date.now(), games);
     UI.clear(root);
 
     // Header: snapshot stats
@@ -130,8 +144,49 @@ const Reports = (() => {
         }
       }
 
-      card.appendChild(UI.el('p', 'feed-desc report-review-note',
-        'Review candidate only — not matched to a specific game. Headlines may refer to injuries, historical events, or unrelated stories. Open the article to verify.'));
+      // Deterministic game link (only when Match confidently identified one game).
+      const m = item.match;
+      if (m && m.status === 'matched' && m.games && m.games[0] && m.games[0].gamePk) {
+        const g = m.games[0];
+        const linkLine = UI.el('p', 'report-game-match');
+        linkLine.appendChild(UI.el('span', 'report-game-match-badge', 'Linked game'));
+        linkLine.appendChild(document.createTextNode(' '));
+        linkLine.appendChild(UI.el('a', 'report-game-match-link', `gamePk ${g.gamePk}`, {
+          href: `game.html?gamePk=${g.gamePk}`,
+        }));
+        if (m.evidence && m.evidence.length) {
+          linkLine.appendChild(document.createTextNode(
+            ` · via “${m.evidence.slice(0, 3).join('”, “')}” (${g.reason})`
+          ));
+        }
+        card.appendChild(linkLine);
+        card.appendChild(UI.el('p', 'feed-desc report-review-note',
+          'Deterministic team/date match against today’s slate — still a review candidate. Open the article and the game page to confirm. Ambiguous headlines are left unlinked on purpose.'));
+      } else if (m && m.status === 'ambiguous') {
+        card.appendChild(UI.el('p', 'feed-desc report-review-note',
+          `Review candidate — game link withheld (${m.abstainReason || 'ambiguous'}). Headlines naming multiple clubs, doubleheaders without a game number, or non-opponents are never force-linked.`));
+      } else {
+        card.appendChild(UI.el('p', 'feed-desc report-review-note',
+          'Review candidate only — not matched to a specific game. Headlines may refer to injuries, historical events, or unrelated stories. Open the article to verify.'));
+      }
+
+      // Explicit restart / first-pitch announcement quotes (never inferred).
+      if (item.announcedTimes && item.announcedTimes.length) {
+        item.announcedTimes.forEach((t) => {
+          const row = UI.el('p', 'report-eta');
+          row.appendChild(UI.el('span', 'report-eta-badge', 'Quoted time'));
+          const label = t.kind === 'first-pitch' ? 'first pitch' : t.kind === 'resume' ? 'resume' : 'restart';
+          row.appendChild(document.createTextNode(
+            ` Publisher text names a ${label} of ${t.display}` +
+            (t.hour24 == null ? ' (12-hour clock without a.m./p.m. — hour not resolved)' : '') +
+            '.'
+          ));
+          row.appendChild(UI.el('span', 'report-eta-evidence', ` Evidence: “${t.evidence}”`));
+          card.appendChild(row);
+        });
+        card.appendChild(UI.el('p', 'feed-desc report-review-note',
+          'Quoted times are taken verbatim from the headline/description. They are not converted across time zones and are not treated as official MLB status. Confirm on the linked article and club channels.'));
+      }
 
       const pubEpoch = item.epoch;
       if (!pubEpoch) {
@@ -200,6 +255,25 @@ const Reports = (() => {
     }
   }
 
+  /* Optional slate of schedule games, set by the Delay Feed once it has
+   * loaded today's games. Used only for deterministic headline↔game linking;
+   * when null the inbox renders without game links (previous behaviour). */
+  let slateGames = null;
+  let lastReport = null;
+
+  function setGames(games) {
+    slateGames = Array.isArray(games) ? games : null;
+    // Re-render against the last good snapshot so links appear as soon as the
+    // slate is known, without waiting for the next 60s refresh.
+    if (lastReport) {
+      const root = document.getElementById('written-reports');
+      if (root) {
+        try { render(lastReport, root, slateGames); }
+        catch (err) { console.warn('report re-render failed', err); }
+      }
+    }
+  }
+
   async function refresh() {
     const root = document.getElementById('written-reports');
     if (!root) return;
@@ -207,8 +281,10 @@ const Reports = (() => {
     try {
       const response = await fetch(`docs/news-report.json?t=${Date.now()}`, { cache: 'no-store', signal: AbortSignal.timeout(20000) });
       if (!response.ok) throw Object.assign(new Error(`HTTP ${response.status}`), { status: response.status });
-      render(await response.json(), root);
+      lastReport = await response.json();
+      render(lastReport, root, slateGames);
     } catch (err) {
+      lastReport = null;
       const base = `Written reports unavailable (${err.message}). No claim about delay status can be made from this missing snapshot. ` +
         'The server-side scan runs every 15 minutes via GitHub Actions; check the official club links above in the meantime. Retrying automatically.';
       const extra = err.status === 404
@@ -226,7 +302,7 @@ const Reports = (() => {
     document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
   });
 
-  return { safeUrl, prepare, render, HOSTS, CATEGORY_LABEL };
+  return { safeUrl, prepare, render, setGames, HOSTS, CATEGORY_LABEL };
 })();
 
 if (typeof module !== 'undefined' && module.exports) module.exports = Reports;

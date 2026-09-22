@@ -454,6 +454,57 @@ await test('written report inbox renders safe source-linked text and failure war
   assert.equal(root.querySelectorAll('a').length, 2);
 });
 
+await test('written report inbox links a uniquely identified game and quotes an explicit restart time', () => {
+  const page = loadPage(['assets/js/ui.js', 'assets/js/match.js', 'assets/js/reports.js'], { ids: ['written-reports'] });
+  const reports = page.get('Reports');
+  const root = page.document.querySelector('#written-reports');
+  const slate = [{
+    gamePk: 900001, _listingDate: '2026-09-20', officialDate: '2026-09-20', doubleHeader: 'N', gameNumber: 1,
+    teams: {
+      away: { team: { id: 147, name: 'New York Yankees', abbreviation: 'NYY', teamName: 'Yankees' } },
+      home: { team: { id: 110, name: 'Baltimore Orioles', abbreviation: 'BAL', teamName: 'Orioles' } },
+    },
+  }];
+  reports.render({
+    generatedAt: new Date().toISOString(),
+    feeds: [{ ok: true, name: 'MLB.com — league news', category: 'official' }],
+    flagged: [{
+      title: 'Yankees-Orioles delayed; restart at 9:05 p.m. ET',
+      author: 'MLB.com',
+      link: 'https://www.mlb.com/news/nyy-bal-delay',
+      feedUrl: 'https://www.mlb.com/feeds/news/rss.xml',
+      pubDate: 'Mon, 21 Sep 2026 20:00:00 GMT',
+      category: 'official',
+      matched: { delay: ['delay'], weather: [] },
+    }],
+  }, root, slate);
+  assert.match(root.textContent, /Linked game/);
+  assert.match(root.textContent, /gamePk 900001/);
+  assert.match(root.textContent, /Quoted time/);
+  assert.match(root.textContent, /9:05 pm ET/);
+  assert.match(root.textContent, /Evidence:/);
+  // DOM shim matches() is class/id/tag only — inspect href attributes directly.
+  const hrefs = root.querySelectorAll('a').map((a) => a.href || a.attributes.href);
+  assert.ok(hrefs.includes('game.html?gamePk=900001'), `game page link present, got ${hrefs.join(' | ')}`);
+  // Ambiguous doubleheader must stay unlinked.
+  const dhSlate = [
+    { ...slate[0], gamePk: 900010, doubleHeader: 'Y', gameNumber: 1 },
+    { ...slate[0], gamePk: 900011, doubleHeader: 'Y', gameNumber: 2 },
+  ];
+  reports.render({
+    generatedAt: new Date().toISOString(),
+    feeds: [{ ok: true }],
+    flagged: [{
+      title: 'Yankees-Orioles rain delay',
+      link: 'https://www.mlb.com/news/dh',
+      feedUrl: 'https://www.mlb.com/feeds/news/rss.xml',
+      pubDate: 'Mon, 21 Sep 2026 20:00:00 GMT',
+    }],
+  }, root, dhSlate);
+  assert.match(root.textContent, /game link withheld/);
+  const dhHrefs = root.querySelectorAll('a').map((a) => a.href || a.attributes.href);
+  assert.equal(dhHrefs.filter((h) => /^game\.html/.test(h || '')).length, 0, 'no force-link on ambiguous doubleheader');
+});
 await test('hidden delay-feed tab schedules an idle wait rather than a zero-delay loop', async () => {
   const page = loadPage([...CORE, 'assets/js/delay-feed.js'], {search:'?date=2026-09-20', ids:['banner', 'feed-list', 'status-line', 'date-label', 'date-picker', 'active-strip', 'feed-stats', 'feed-tabs', 'countdown', 'live-dot', 'refresh-btn', 'sound-toggle-btn', 'back-link', 'written-reports', 'league-links', 'independent-links', 'weather-links', 'club-links']});
   page.document.fire('DOMContentLoaded');

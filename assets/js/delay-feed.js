@@ -186,6 +186,11 @@
       state.games = games;
       games.forEach((g) => state.inspections.set(g.gamePk, Delays.inspectGame(g)));
       checkSparseSchedule(requestDate, games.length); // async, one check per date
+      // Hand the slate to the written-reports linker so headlines can be
+      // deterministically matched to a gamePk (abstains on ambiguity).
+      if (typeof Reports !== 'undefined' && typeof Reports.setGames === 'function') {
+        try { Reports.setGames(games); } catch (_) { /* reports page optional */ }
+      }
       renderClubLinks();
       render();
       await Promise.all([scanDelays(requestDate), refreshWeather(requestDate)]);
@@ -991,6 +996,9 @@
     state.seenRowIds = new Set();
     state.firstRender = true;
     state.lastWeatherAt = 0;
+    if (typeof Reports !== 'undefined' && typeof Reports.setGames === 'function') {
+      try { Reports.setGames([]); } catch (_) { /* optional */ }
+    }
     renderClubLinks(); // drop the previous date's club links immediately
   }
 

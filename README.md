@@ -41,7 +41,11 @@ resumed.
     NOT official**), each flagged for delay/weather keywords and linked to the original
     article/post; entries are labeled MLB-official, independent or community, and the
     section shows the latest scheduled-scan run (status + link to the workflow run)
-    as proof the scanner is alive;
+    as proof the scanner is alive. A **deterministic linker** (`assets/js/match.js`)
+    attaches a `gamePk` when named team(s) uniquely identify one game on the selected
+    slate (doubleheaders without a game-number cue, non-opponents and three-plus clubs
+    abstain). Explicit restart / first-pitch announcement phrasing is quoted with the
+    original evidence string; speculative wording ("hoping to", "around") is rejected;
   - a **manual-review panel** of discovery links: league accounts (@MLB, @MLB_PR),
     verified club X/Twitter handles for every team playing today, independent newsrooms,
     government weather sources (NWS radar, SPC outlook, ECCC warnings), and community
@@ -155,10 +159,11 @@ reporting context and community posts are fan discussion — neither is a team
 announcement.
 
 Headlines remain review candidates across all dates, **not verified game-specific
-restart reports**. No automated game/date/doubleheader matching or reliable extraction
-of announced restart times is implemented. The app explicitly says when a restart
-is not confirmed. Scheduled first pitch, forecast clearing times and play-event
-end timestamps must not be substituted for an announcement.
+restart reports**. Deterministic team/opponent matching and explicit announcement
+quotes are applied when the rules fire cleanly; ambiguous cases stay unlinked and
+unquoted on purpose. The app explicitly says when a restart is not confirmed.
+Scheduled first pitch, forecast clearing times and play-event end timestamps must
+not be substituted for an announcement.
 
 See [the current audit and next-session plan](docs/implementation-review.md).
 
@@ -175,11 +180,12 @@ assets/js/api.js      StatsAPI client (retry, 429 self-throttle, cache, source-l
 assets/js/weather.js  NWS → ECCC → Open-Meteo provider chain, alerts, risk rules
 assets/js/delays.js   Status registry parsing, advisory timeline, box-score cross-checks, flags
 assets/js/clubs.js    Club news + verified X/Twitter handles + independent & weather channel links
-assets/js/reports.js  Written-reports renderer (safe, categorized, de-duplicated)
+assets/js/reports.js  Written-reports renderer (safe, categorized, de-duplicated, game-linked)
+assets/js/match.js    Deterministic headline↔game linker + explicit restart-time quotes
 assets/js/scoreboard.js · delay-feed.js · game.js   Page controllers
 assets/js/ui.js       DOM helpers, chips, logos
 tools/fixtures/       Captured, verified API payloads (each has _source / _verified)
-tools/*-test.mjs      Offline test suites (run in Node, no network) — 90+ passing assertions
+tools/*-test.mjs      Offline test suites (run in Node, no network) — 100+ passing assertions
 tools/news-scan.mjs   News + community scanner (league + 30 clubs + 7 outlets + r/baseball) → snapshot
 docs/verification.md  Line-by-line verification log with the URLs used
 docs/verification.html  Same, rendered for the site footer
@@ -198,11 +204,12 @@ Open <http://localhost:8000>. The offline, network-free checks:
 
 ```bash
 for f in assets/js/*.js; do node --check "$f"; done
-node tools/delays-test.mjs    # 30 — status registry, advisories, timeline, box score, cross-checks, transitions, sparse schedule
+node tools/delays-test.mjs    # 32 — status registry, advisories, timeline, box score, cross-checks, transitions, sparse schedule
 node tools/weather-test.mjs   # 25 — NWS / ECCC / Open-Meteo normalisation, alert classes, risk rules, provider chain
-node tools/news-test.mjs      # 24 — RSS + Reddit social parsing, delay/weather vocabulary classification, feed config
-node tools/render-test.mjs    #  8 — scoreboard + delay feed + game page rendered against captured payloads
-node tools/reports-test.mjs   #   — report URL safety, community category, dedup, stale/future/failed checks
+node tools/news-test.mjs      # 25 — RSS + Reddit social parsing, delay/weather vocabulary classification, feed config
+node tools/match-test.mjs     # 18 — deterministic headline↔game linking, doubleheader abstention, restart-time quotes
+node tools/render-test.mjs    #  9 — scoreboard + delay feed + game page + linked report cards against captured payloads
+node tools/reports-test.mjs   #   — report URL safety, community category, dedup, stale/future/failed, game-link annotation
 ```
 
 Run the news scan locally (needs outbound network — works in GitHub Actions):
@@ -257,8 +264,9 @@ See the [About page](about.html#limitations) and
   The workflow cannot switch Pages mode itself (admin-only). Enable
   **Settings → Pages → Build and deployment → Source: GitHub Actions**; until then the Delay Feed
   shows the latest scan run's status with a link to the run and prints the exact steps.
-- **No automatic restart-time extraction.** Expected start / restart times are never
-  inferred from scheduled first pitch, forecast clearing times or reporter speculation.
+- **Restart times are quoted, never invented.** Explicit announcement phrasing is
+  extracted with evidence; speculative estimates and forecast-clearing times are
+  rejected. Expected start / restart is never inferred from scheduled first pitch.
 - **RSS scanning is ~15-minute scheduled, not real-time.** GitHub Actions scheduling and
   Pages publishing add latency; this is not a continuous monitoring service.
 - **Some venues have no government forecast coverage** (e.g., London, Mexico City, Tokyo)

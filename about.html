@@ -175,10 +175,12 @@
 
     <h2 id="reports">Written reports — what is and isn't done</h2>
     <div class="callout callout-warn">
-      <p><strong>Important:</strong> Headlines in the written-reports inbox are <em>not</em> verified
-      restart times and <em>not</em> matched to specific games. They are a keyword-matched review aid.
-      Always click through to the official article (and ideally the club's own MLB.com page or verified
-      account) before treating a reported restart time as confirmed.</p>
+      <p><strong>Important:</strong> Headlines in the written-reports inbox are <em>review candidates</em>,
+      not verified restart announcements. A deterministic linker may attach a game when the headline
+      uniquely identifies one game on the selected slate, and may quote an explicit restart/first-pitch
+      time with the original evidence string — both remain review aids. Always click through to the
+      official article (and the club's own MLB.com page or verified account) before treating a reported
+      restart time as confirmed.</p>
     </div>
     <p>What is automated:</p>
     <ul>
@@ -190,13 +192,22 @@
       <li>Every headline links to its article and its publisher RSS feed; the exact words that matched
       are shown on the card so a reviewer can see why it was surfaced.</li>
       <li>Duplicate URLs are de-duplicated; future-dated, older-than-24h, and dateless items are flagged.</li>
+      <li><strong>Deterministic game linking</strong> (<code>assets/js/match.js</code>): a headline is
+      linked to a <code>gamePk</code> only when named team(s) uniquely identify one game on the selected
+      slate. Doubleheaders without an explicit game-number cue, non-opponents, and three-plus clubs
+      abstain (left unlinked on purpose). Matched phrases are shown as evidence.</li>
+      <li><strong>Explicit restart/first-pitch quotes</strong>: only announcement phrasing
+      ("restart at 8:35 p.m. ET", "first pitch now set for 7:10pm", "targeting an 8:30 restart") is
+      extracted, with the matched substring retained verbatim. Speculative wording ("hoping to",
+      "could resume", "around") is rejected; 12-hour clocks without a.m./p.m. leave the 24-hour hour
+      unresolved so nothing is invented.</li>
     </ul>
     <p>What is <strong>not</strong> automated (see <a href="#limitations">Limitations</a>):</p>
     <ul>
-      <li>No game/team/date matching — a headline saying "Yankees rained out" could refer to a historical
-      event, a spring training game, or a future doubleheader.</li>
-      <li>No extraction of announced restart times from prose ("hoping to get underway around 8:30" etc.).
-      These require natural-language disambiguation that we deliberately avoid so nothing is hallucinated.</li>
+      <li>No force-linking of ambiguous headlines — historical references, spring training, multi-club
+      roundups and doubleheaders without a game number stay unlinked.</li>
+      <li>No invented restart times from weather forecasts, scheduled first pitch, or soft estimates
+      ("hoping to get underway around 8:30"). Only explicit announcement text is quoted.</li>
       <li>No reading of X/Twitter, Facebook, Instagram, Threads or Bluesky posts — those platforms
       have no keyless public read API (re-verified 2026-09-22). <strong>Reddit is attempted</strong>
       server-side on every scan (its public JSON is keyless); anonymous access from the build network
@@ -243,9 +254,11 @@
       The workflow cannot switch Pages mode itself (admin-only, HTTP 403). Until a repository owner
       enables <em>Settings → Pages → Build and deployment → Source: GitHub Actions</em>, the Delay Feed
       shows the latest scan run's status with a direct link to the run, and prints the exact steps.</li>
-      <li><span class="limitation-tag">ETA</span><strong>No automatic restart-time extraction.</strong>
-      Restart estimates ("first pitch around 8:30") are prose in reporter/club posts and require
-      game/date/timezone disambiguation we do not perform, to avoid fabricating times.</li>
+      <li><span class="limitation-tag">ETA</span><strong>Restart times are quoted, never invented.</strong>
+      Explicit announcement phrasing is extracted with the original evidence string and optional zone
+      label; speculative estimates ("hoping to", "around 8:30") and forecast-clearing times are rejected.
+      12-hour clocks without a.m./p.m. leave the 24-hour hour unresolved. Times are not converted across
+      time zones and are never treated as official MLB status.</li>
       <li><span class="limitation-tag">RSS</span><strong>RSS scanning is 15-minute scheduled, not real-time.</strong>
       GitHub Actions scheduled jobs can be delayed by up to ~15 minutes during load; Pages publishing adds
       another latency window. This is not a continuous monitoring service.</li>
@@ -275,13 +288,12 @@
       credentials <em>only</em> in GitHub Actions secrets (server-side); never ship them to the browser.
       Use official team accounts as published on each club's MLB.com page; do not assume third-party
       accounts are verified.</li>
-      <li><strong>Game-linked announcements.</strong> Store immutable source excerpts, canonical URL,
-      publisher, publication time, and exact team/game/date identifiers. Handle doubleheaders,
-      timezones, midnight rollover, revised estimates ("now targeting 8:50"), deleted posts, and
-      conflicting announcements. Abstain on ambiguous matches.</li>
-      <li><strong>ETA extraction.</strong> Only use explicit announcement text (never weather forecasts
-      or scheduled first pitch). Retain quoted evidence, original timezone, and revision history.
-      Add fixture-driven tests per provider before promotion.</li>
+      <li><strong>Richer game-linked announcements.</strong> The deterministic linker
+      (<code>match.js</code>) is live for unique team/opponent matches and explicit game-number cues.
+      Next: immutable source excerpts with revision history, midnight-rollover handling, deleted-post
+      detection, and conflict flags when two publishers disagree on the same gamePk.</li>
+      <li><strong>ETA revision history.</strong> Explicit announcement quotes are live. Next: track
+      revised estimates ("now targeting 8:50") over time per game, still with quoted evidence only.</li>
       <li><strong>Always-on ingestion.</strong> Move to a durable scheduler/database for push-like
       freshness and persistent history. The current GitHub Actions schedule can be delayed or disabled.</li>
       <li><strong>Browser/accessibility acceptance.</strong> Test mobile layouts, keyboard and
