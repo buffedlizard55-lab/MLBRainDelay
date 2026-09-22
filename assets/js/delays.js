@@ -495,6 +495,32 @@ const Delays = (() => {
     return flags;
   }
 
+  /* ------------------------------------------------------ sparse schedule */
+
+  /**
+   * Schedule-completeness check. The official schedule for a date can report
+   * far fewer games than adjacent days (observed live 2026-09-22: 2026-09-21
+   * reported 3 games while 2026-09-20 and 2026-09-22 reported 15 and 16).
+   * That may be a legitimate sparse slate (after a weather-cancelled day,
+   * holiday, …) or incomplete schedule data — either way it is surfaced as a
+   * flag for review, never resolved silently. Pure function; no fetching.
+   *
+   * Thresholds: a full MLB slate is typically 12–20 games. `count <= 8` with
+   * an adjacent day at least 4 games larger (or zero games with an adjacent
+   * day of 8+) is "sparse enough to flag". Returns { code, text } or null.
+   */
+  function sparseScheduleFlag(date, count, prevDate, prevCount, nextDate, nextCount) {
+    const n = Number.isFinite(count) ? count : null;
+    if (n == null || n > 8) return null;
+    const bigger = (d, c) => (Number.isFinite(c) && c >= n + 4) ? `${d} reports ${c}` : null;
+    const bits = [bigger(prevDate, prevCount), bigger(nextDate, nextCount)].filter(Boolean);
+    if (!bits.length) return null;
+    return {
+      code: 'sparse-schedule',
+      text: `The official MLB schedule reports ${n} game${n === 1 ? '' : 's'} for ${date} while ${bits.join('; ')} — flagged for review (may be a legitimate sparse slate or incomplete schedule data).`,
+    };
+  }
+
   /* --------------------------------------------------------- transitions */
 
   /**
@@ -528,7 +554,7 @@ const Delays = (() => {
     REASON_BY_CODE, FORFEIT_REASON_BY_CODE, WEATHER_REASONS, ACTIVE_KINDS, DISRUPTION_KINDS, KIND_META,
     classifyReason, parseStatus, statusLabel, rescheduleInfo, inspectGame,
     isAdvisoryEvent, extractAdvisories, buildTimeline,
-    parseBoxscoreInfo, crossCheck, weatherConsistencyFlags, diffStatuses,
+    parseBoxscoreInfo, crossCheck, weatherConsistencyFlags, diffStatuses, sparseScheduleFlag,
     minutesBetween,
   };
 })();

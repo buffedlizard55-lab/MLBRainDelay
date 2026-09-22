@@ -75,6 +75,7 @@
       const nextGames = await MLB.getSchedule(requestDate);
       if (requestDate !== dateStr) return;
       games = nextGames;
+      checkSparseSchedule(requestDate, games.length); // async, one check per date
       // Seed the sweep signatures from the hydrated schedule so the very
       // first status sweep can already detect a flip instead of only
       // recording a baseline.
@@ -114,6 +115,45 @@
       if (!document.hidden) load();
       else scheduleNext(IDLE_POLL_MS);
     }, wait);
+  }
+
+  /* ------------------------------------------------ sparse-schedule check */
+
+  const sparseChecks = new Map(); // dateStr -> { flag }
+
+  function shiftDateStr(dateStr, days) {
+    const d = new Date(`${dateStr}T12:00:00`);
+    d.setDate(d.getDate() + days);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  /** Same irregularity as the delay feed: a date reporting far fewer games
+   * than its neighbours is flagged, with the counts and a source link. */
+  async function checkSparseSchedule(forDate, count) {
+    const banner = $('#banner');
+    if (!banner) return;
+    const removeNote = () => { const n = banner.querySelector('.sparse-note'); if (n) n.remove(); };
+    if (count > 8) { removeNote(); return; }
+    let check = sparseChecks.get(forDate);
+    if (!check) {
+      const prevDate = shiftDateStr(forDate, -1);
+      const nextDate = shiftDateStr(forDate, 1);
+      const [prevCount, nextCount] = await Promise.all([
+        MLB.getScheduleGameCount(prevDate),
+        MLB.getScheduleGameCount(nextDate),
+      ]);
+      check = { flag: Delays.sparseScheduleFlag(forDate, count, prevDate, prevCount, nextDate, nextCount) };
+      sparseChecks.set(forDate, check);
+    }
+    if (forDate !== dateStr) return; // the user changed dates meanwhile
+    removeNote();
+    if (check.flag) {
+      const el = UI.el('div', 'sparse-note');
+      el.appendChild(UI.el('span', 'sparse-note-badge', '🚩 sparse schedule — flagged for review'));
+      el.appendChild(UI.el('span', 'sparse-note-text', check.flag.text));
+      el.appendChild(UI.el('a', 'source-link', 'Schedule JSON for this date', { href: MLB.scheduleUrl(forDate), target: '_blank', rel: 'noopener' }));
+      banner.appendChild(el);
+    }
   }
 
   /* ----------------------------------------------------- status watcher */

@@ -2,13 +2,15 @@
 /* ============================================================================
  * tools/news-scan.mjs — official news-RSS scan for weather delays
  * ----------------------------------------------------------------------------
- * A keyless, server-side scanner over the OFFICIAL, machine-readable news feeds
- * of MLB.com (one league feed + one feed per club) and ESPN. It is designed to
- * run on a schedule (GitHub Actions) or locally — never inside the browser,
- * because api.weather.gov / mlb.com RSS answer CLI/CI requests but most of
- * these hosts do not send CORS headers for a browser page to read them, and the
- * social platforms the request names (X/Twitter, Facebook, Instagram, Reddit)
- * are not integrated in this project.
+ * A keyless, server-side scanner over the OFFICIAL, machine-readable news
+ * feeds of MLB.com (one league feed + one feed per club), the major
+ * independent MLB news outlets, and the r/baseball community feed (Reddit's
+ * keyless public JSON — the only named social platform with one). It is
+ * designed to run on a schedule (GitHub Actions) or locally — never inside
+ * the browser, because most of these hosts do not send CORS headers for a
+ * browser page to read them. X/Twitter, Facebook, Instagram, Threads and
+ * Bluesky have no keyless public read path and are not consumed (see the
+ * per-platform status notes by FEEDS below).
  *
  * What it does — nothing more, nothing less:
  *   1. GET each configured RSS feed (RSS 2.0 XML).
@@ -28,9 +30,13 @@
  * article. Feed status is reported per feed, so a failing feed is visible,
  * never silently skipped.
  *
- * Configured feeds: MLB league and 30 clubs, plus ESPN (independent news).
- * Availability is measured per request, not guaranteed by configuration.
- * Social-platform adapters are not configured; no claim of exhaustive coverage.
+ * Configured sources: MLB league + 30 club RSS feeds, 7 independent news
+ * outlets (ESPN, CBS, Yahoo, SI, The Athletic, NBC Sports), plus one social
+ * source (Reddit r/baseball JSON) categorised as community. X/Twitter,
+ * Facebook and Instagram have no keyless public read API and are therefore
+ * not consumed (verified 2026-09-22); they are linked for manual review on
+ * the site. Availability is measured per request, not guaranteed by
+ * configuration.
  *
  * Usage:
  *   node tools/news-scan.mjs            # scan and print JSON to stdout
@@ -57,17 +63,26 @@ const SLUGS = [
  * counted against coverage; feeds are NEVER silently skipped.
  *
  * Categories:
- *   official  — MLB.com property (league or club); these are the publisher
- *               of record for an official delay / postponement announcement.
- *   wire      — Independent news wire / major outlet. Provides reporting
- *               context but is NOT an official club/league statement.
+ *   official   — MLB.com property (league or club); these are the publisher
+ *                of record for an official delay / postponement announcement.
+ *   wire       — Independent news wire / major outlet. Provides reporting
+ *                context but is NOT an official club/league statement.
+ *   community  — Fan / community discussion (Reddit). NOT official evidence;
+ *                surfaced so a human can open the thread and decide.
  *
- * Facebook, Instagram and Reddit DO NOT publish keyless public RSS feeds
- * for team accounts (verified 2026-09-21). X/Twitter deprecated their
- * public RSS access in 2013 and locked down anonymous reads in 2023.
- * Threads, Bluesky and other newer platforms similarly require
- * authenticated API access. These platforms can only be consumed via
- * authorized credentials (see docs/implementation-review.md).
+ * Platform access status (re-verified 2026-09-22):
+ *   Reddit — has a public, keyless JSON API (www.reddit.com/r/{sub}/new.json).
+ *     Anonymous requests from datacenter / CI egress returned HTTP 403 on
+ *     2026-09-22, so the social scan attempts it every run and reports the
+ *     result per feed; if the network ever allows it, data flows with no
+ *     further change. It is never silently skipped.
+ *   X/Twitter — no keyless public read API (public RSS deprecated 2013,
+ *     anonymous web reads locked down 2023); requires authorized credentials.
+ *   Facebook / Instagram — no keyless public API for page/post streams;
+ *     Graph API requires a page access token.
+ *   Threads / Bluesky — authenticated API access required.
+ *   These platforms can only be consumed via authorized credentials
+ *     (see docs/implementation-review.md).
  */
 const FEEDS = [
   /* Official MLB league feed */
@@ -84,6 +99,28 @@ const FEEDS = [
   { name: 'NBC Sports — Hardball Talk', url: 'https://mlb.nbcsports.com/feed/', category: 'wire' },
   /* Club feeds — official publisher-of-record per team */
   ...SLUGS.map((slug) => ({ name: `MLB.com — ${slug} news (official)`, url: `https://www.mlb.com/${slug}/feeds/news/rss.xml`, category: 'official' })),
+];
+
+/*
+ * Social / community sources scanned server-side. Reddit is the only one of
+ * the platforms named in the project goals with a public, keyless JSON API,
+ * so it is attempted on every scan. The request is a plain GET of the public
+ * listing endpoint — no credentials, no scraping of protected endpoints.
+ *
+ *   url:      r/baseball /new.json — the newest posts, up to `limit`
+ *   shape:    { kind, data: { children: [ { kind: "t3", data: { id,
+ *              title, permalink, author, created_utc, selftext, num_comments,
+ *              upvote_ratio, ... } } ] } }
+ *   access:   anonymous reads are frequently answered HTTP 403 from datacenter
+ *             / CI egress (observed 2026-09-22). A 403 is reported as a
+ *             per-feed failure in the snapshot — never silently skipped,
+ *             never retried into a hammer loop.
+ *
+ * These are COMMUNITY sources: fan discussion, not official club or league
+ * statements, and never treated as evidence that a delay happened.
+ */
+const SOCIAL_FEEDS = [
+  { name: 'Reddit — r/baseball (community, NOT official)', url: 'https://www.reddit.com/r/baseball/new.json?limit=100&raw_json=1', category: 'community', source: 'reddit' },
 ];
 
 /* ------------------------------------------------------------- vocabulary */
@@ -156,6 +193,53 @@ function parseRss(xml) {
   return out;
 }
 
+/**
+ * Parse a Reddit `/r/{sub}/new.json` listing into the same item shape
+ * parseRss emits: { title, link, pubDate, author, description, guid }.
+ *
+ * Verified shape (public API docs + listing response structure):
+ *   { data: { children: [ { kind: "t3", data: {
+ *       id, title, permalink, author, created_utc (epoch seconds),
+ *       selftext, num_comments, ... } } ] } }
+ *
+ * Only fields the API publishes are read; a missing field yields null,
+ * never an invented value. Titles/links are taken verbatim (the
+ * `raw_json=1` parameter disables HTML-entity escaping, and the values
+ * pass through decodeEntities() anyway, which is a no-op on clean text).
+ * `pubDate` is the ISO string of created_utc — an explicit UTC instant.
+ *
+ * Keyword matching covers the full title plus the first 500 characters of
+ * the post body — long threads are truncated for the snapshot, so a delay
+ * mention buried deep in a very long selftext is not indexed (the thread
+ * link is still what a reviewer opens; nothing is paraphrased).
+ */
+function parseReddit(json) {
+  const out = { title: null, link: null, items: [] };
+  const children = (json && json.data && Array.isArray(json.data.children)) ? json.data.children : [];
+  children.forEach((child) => {
+    const d = (child && child.data) || {};
+    if (!d.title) return; // nothing reviewable without a title
+    // Link only the thread itself: a relative subreddit permalink (the
+    // documented shape) or an absolute reddit.com permalink. `d.url` is the
+    // outbound target of link posts (external sites) and is never used.
+    let link = null;
+    if (typeof d.permalink === 'string') {
+      if (d.permalink.startsWith('/')) link = `https://www.reddit.com${d.permalink}`;
+      else if (/^https?:\/\/([a-z0-9-]+\.)*reddit\.com\//i.test(d.permalink)) link = d.permalink;
+    }
+    if (!link) return; // a post we cannot link to cannot be reviewed
+    out.items.push({
+      title: decodeEntities(String(d.title)),
+      link,
+      pubDate: Number.isFinite(d.created_utc) ? new Date(d.created_utc * 1000).toISOString() : null,
+      author: d.author ? decodeEntities(String(d.author)) : null,
+      description: d.selftext ? decodeEntities(String(d.selftext)).slice(0, 500) : null,
+      guid: d.id || null,
+    });
+  });
+  return out;
+}
+
 /* Interpret an RSS pubDate like "Mon, 21 Sep 2026 20:49:36 GMT" or
  * "Mon, 21 Sep 2026 16:55:14 EST" to a sortable UTC epoch. Returns null when
  * uninterpretable — the caller never invents a time. */
@@ -186,28 +270,43 @@ function classifyItem(item) {
 
 /* ------------------------------------------------------------------- fetch */
 
-const UA = 'MLBRainDelay-news-scan/1.0 (official MLB/ESPN RSS; weather-delay fan project)';
+const UA = 'MLBRainDelay-news-scan/1.0 (public MLB news RSS + Reddit community JSON; weather-delay fan project; contact: buffedlizard55-lab)';
 
-async function fetchFeed({ name, url, category }, { timeout = 15000 } = {}) {
+async function fetchFeed({ name, url, category, source }, { timeout = 15000 } = {}) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeout);
   try {
-    const res = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'application/rss+xml, application/xml, text/xml, */*' }, signal: ctrl.signal });
-    if (!res.ok) return { name, url, ok: false, category: category || 'unknown', status: res.status, items: [], flagged: [], error: `HTTP ${res.status}` };
-    const xml = await res.text();
-    if (!/<rss\b/i.test(xml) || !/<channel\b/i.test(xml) || !/<\/channel>/i.test(xml)) {
-      throw new Error('Unexpected feed format (expected RSS channel)');
+    const headers = { 'User-Agent': UA };
+    if (source === 'reddit') headers.Accept = 'application/json';
+    else headers.Accept = 'application/rss+xml, application/xml, text/xml, */*';
+    const res = await fetch(url, { headers, signal: ctrl.signal });
+    if (!res.ok) {
+      const errText = source === 'reddit' && res.status === 403
+        ? 'HTTP 403 — Reddit blocks anonymous access from this network; the subreddit is linked for manual review'
+        : `HTTP ${res.status}`;
+      return { name, url, ok: false, category: category || 'unknown', source: source || 'rss', status: res.status, items: [], flagged: [], error: errText };
     }
-    const parsed = parseRss(xml);
+    const body = await res.text();
+    let parsed;
+    if (source === 'reddit') {
+      let json;
+      try { json = JSON.parse(body); } catch (_) { throw new Error('Unexpected social feed format (expected JSON)'); }
+      parsed = parseReddit(json);
+    } else {
+      if (!/<rss\b/i.test(body) || !/<channel\b/i.test(body) || !/<\/channel>/i.test(body)) {
+        throw new Error('Unexpected feed format (expected RSS channel)');
+      }
+      parsed = parseRss(body);
+    }
     const flagged = parsed.items
       .map((item) => {
         const c = classifyItem(item);
         return c.flagged ? { ...item, matched: { delay: c.delay, weather: c.weather } } : null;
       })
       .filter(Boolean);
-    return { name, url, ok: true, category: category || 'unknown', status: res.status, feedTitle: parsed.title, feedLink: parsed.link, items: parsed.items.length, flagged };
+    return { name, url, ok: true, category: category || 'unknown', source: source || 'rss', status: res.status, feedTitle: parsed.title, feedLink: parsed.link, items: parsed.items.length, flagged };
   } catch (err) {
-    return { name, url, ok: false, category: category || 'unknown', status: 0, items: [], flagged: [], error: (err && err.message) || String(err) };
+    return { name, url, ok: false, category: category || 'unknown', source: source || 'rss', status: 0, items: [], flagged: [], error: (err && err.message) || String(err) };
   } finally {
     clearTimeout(timer);
   }
@@ -215,9 +314,10 @@ async function fetchFeed({ name, url, category }, { timeout = 15000 } = {}) {
 
 /* --------------------------------------------------------------------- run */
 
-async function run({ feeds = FEEDS, concurrency = 3, out = null } = {}) {
+async function run({ feeds = null, socialFeeds = SOCIAL_FEEDS, concurrency = 3, out = null } = {}) {
+  const allFeeds = feeds || [...FEEDS, ...socialFeeds];
   const results = [];
-  const queue = feeds.slice();
+  const queue = allFeeds.slice();
   const workers = new Array(Math.min(concurrency, queue.length)).fill(0).map(async () => {
     while (queue.length) {
       const feed = queue.shift();
@@ -229,8 +329,10 @@ async function run({ feeds = FEEDS, concurrency = 3, out = null } = {}) {
   const report = {
     generatedAt: new Date().toISOString(),
     scanner: 'tools/news-scan.mjs',
-    note: 'Headlines that mention delay/weather vocabulary, with their official article link — for a human to review. Nothing here asserts that a delay happened.',
+    note: 'Headlines that mention delay/weather vocabulary, with their article link — for a human to review. Nothing here asserts that a delay happened. Entries categorised "community" are fan discussion, not official statements.',
     feedsScanned: results.length,
+    rssFeeds: FEEDS.length,
+    socialFeeds: socialFeeds.length,
     feedsOk: results.filter((r) => r.ok).length,
     feedsFailed: results.filter((r) => !r.ok).length,
     feeds: results,
@@ -248,7 +350,7 @@ async function run({ feeds = FEEDS, concurrency = 3, out = null } = {}) {
 }
 
 /* Exports for the offline tests (run() is only invoked from the CLI/main). */
-export { parseRss, classifyItem, decodeEntities, stripCdata, stripTags, pubDateToEpoch, DELAY_WORDS, WEATHER_WORDS, FEEDS, fetchFeed, run };
+export { parseRss, parseReddit, classifyItem, decodeEntities, stripCdata, stripTags, pubDateToEpoch, DELAY_WORDS, WEATHER_WORDS, FEEDS, SOCIAL_FEEDS, fetchFeed, run };
 
 /* --------------------------------------------------------------- CLI/main */
 

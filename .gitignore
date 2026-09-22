@@ -8,3 +8,7 @@ node_modules/
 .idea/
 
 _site/
+
+# Local scan output (the workflow builds it inside the Pages artifact; it is
+# intentionally not committed to main)
+docs/news-report.json

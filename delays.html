@@ -49,10 +49,13 @@
 
     <section class="manual-review" aria-labelledby="reports-heading">
       <h2 id="reports-heading">Written reports · publisher inbox</h2>
-      <p>Automatic scan of MLB league / 30 club RSS feeds and ESPN. Latest available headlines across all dates,
-        independent of the game-date selector above. Scheduled every 15 minutes; publishing can be delayed.
-        These are source-linked review candidates, not verified restart announcements.
+      <p>Automatic scan of the official MLB league / 30-club RSS feeds, 7 independent news outlets, and the
+        r/baseball community feed. Latest available headlines across all dates, independent of the
+        game-date selector above. Scheduled every 15 minutes; publishing can be delayed.
+        These are source-linked review candidates — community entries are fan discussion, not official
+        statements — never verified restart announcements.
         We never infer an expected start time from weather or a scheduled first pitch.</p>
+      <div id="scan-status" aria-live="polite"></div>
       <div id="written-reports" aria-live="polite">Loading publisher reports…</div>
       <p><a href="docs/news-report.json">Full source snapshot (JSON)</a> · <a href="docs/implementation-review.md">Coverage, audit and next steps</a></p>
     </section>
@@ -64,10 +67,12 @@
         official MLB RSS and independent news outlets — they are <strong>review candidates only</strong>, not confirmed
         restart times. <strong>Expected start / restart times are never inferred</strong> from scheduled first pitch,
         forecast clearing times, or reporter speculation — open the official links to confirm.</p>
-      <p>X/Twitter, Facebook, Instagram, Reddit, Threads and Bluesky are <strong>not ingested</strong> by this project
-        (no keyless, CORS-enabled public API exists as of 2026-09-21; see
-        <a href="about.html">About · Sources · Limitations</a>). The links below are discovery links
-        for manual verification; they are not data sources and community outlets are not official evidence.</p>
+      <p><strong>Social media:</strong> Reddit (r/baseball) is attempted server-side on every 15-minute scan —
+        its public JSON endpoint is keyless; anonymous access from the build network currently answers
+        HTTP 403 (re-verified 2026-09-22), in which case the scan lists it as an unavailable source instead
+        of skipping it. X/Twitter, Facebook, Instagram, Threads and Bluesky have <strong>no keyless public
+        read API</strong> (verified 2026-09-22) and are not ingested; the links below are discovery links
+        for manual verification, not data sources. Community outlets are not official evidence.</p>
       <details open>
         <summary>League-wide & weather sources (opens in a new tab)</summary>
         <h4 class="manual-section-head">Official league</h4>

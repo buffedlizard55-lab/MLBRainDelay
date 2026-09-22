@@ -13,7 +13,8 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 import {
-  parseRss, classifyItem, decodeEntities, stripCdata, stripTags, pubDateToEpoch, DELAY_WORDS, WEATHER_WORDS, FEEDS, fetchFeed,
+  parseRss, parseReddit, classifyItem, decodeEntities, stripCdata, stripTags, pubDateToEpoch,
+  DELAY_WORDS, WEATHER_WORDS, FEEDS, SOCIAL_FEEDS, fetchFeed,
 } from './news-scan.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -138,6 +139,98 @@ await test('HTTP 200 HTML is a feed failure, not an empty healthy feed', async (
     assert.match(result.error, /Unexpected feed format/);
     globalThis.fetch = async () => ({ok: true, status: 200, text: async () => '<rss><channel><title>Empty</title></channel></rss>'});
     assert.equal((await fetchFeed(FEEDS[0])).ok, true);
+  } finally { globalThis.fetch = previous; }
+});
+
+console.log('news-scan.mjs — social (Reddit) parsing');
+const redditFx = fx('reddit-baseball-sample.json');
+await test('parseReddit reads children verbatim into the shared item shape', () => {
+  const r = parseReddit(redditFx);
+  // The title-less post (abc004) is dropped; the other four are kept.
+  assert.equal(r.items.length, 4);
+  const first = r.items[0];
+  assert.equal(first.title, 'Fenway rain delay: tarp down, game suspended');
+  assert.equal(first.link, 'https://www.reddit.com/r/baseball/comments/abc001/fenway_rain_delay_tarp_down_game_suspended/');
+  assert.equal(first.pubDate, new Date(1789970000 * 1000).toISOString());
+  assert.equal(first.author, 'testfan');
+  assert.equal(first.guid, 'abc001');
+  assert.ok(first.description.toLowerCase().includes('tarp'));
+});
+await test('parseReddit drops posts without a title (nothing reviewable)', () => {
+  const r = parseReddit(redditFx);
+  assert.equal(r.items.some((i) => i.guid === 'abc004'), false);
+});
+await test('parseReddit links via the subreddit permalink, not an external url', () => {
+  const r = parseReddit(redditFx);
+  const linked = r.items.find((i) => i.guid === 'abc005');
+  assert.ok(linked.link.startsWith('https://www.reddit.com/'));
+  assert.equal(linked.link.includes('example.com'), false);
+});
+await test('parseReddit tolerates missing / malformed payloads', () => {
+  assert.deepEqual(parseReddit(null), { title: null, link: null, items: [] });
+  assert.deepEqual(parseReddit({}), { title: null, link: null, items: [] });
+  assert.deepEqual(parseReddit({ data: { children: [] } }), { title: null, link: null, items: [] });
+});
+await test('parseReddit accepts absolute reddit.com permalinks, rejects others', () => {
+  const one = (d) => parseReddit({ data: { children: [{ kind: 't3', data: d }] } }).items;
+  assert.equal(one({ title: 't', permalink: '/r/baseball/comments/x/', created_utc: 1789970000 }).length, 1);
+  assert.equal(one({ title: 't', permalink: 'https://www.reddit.com/r/baseball/comments/x/', created_utc: 1789970000 }).length, 1);
+  assert.equal(one({ title: 't', permalink: 'https://example.com/stealth/', created_utc: 1789970000 }).length, 0, 'non-reddit absolute permalink dropped');
+  assert.equal(one({ title: 't', url: 'https://example.com/outbound', created_utc: 1789970000 }).length, 0, 'no permalink → not reviewable, outbound url never used');
+});
+await test('classifyItem flags the synthetic rain-delay thread and not the hot take', () => {
+  const items = fx('reddit-baseball-sample.json').data.children
+    .filter((c) => c.data.title)
+    .map((c) => ({ title: c.data.title, description: c.data.selftext }));
+  const fenway = classifyItem(items[0]);
+  assert.equal(fenway.flagged, true);
+  assert.ok(fenway.delay.includes('tarp'));
+  assert.ok(fenway.delay.includes('suspend'));
+  assert.ok(fenway.weather.includes('rain'));
+  const hotTake = classifyItem(items[2]);
+  assert.equal(hotTake.flagged, false);
+});
+await test('fetchFeed treats a Reddit 403 as an explicit per-feed failure, not success', async () => {
+  const previous = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => ({ ok: false, status: 403, text: async () => 'blocked' });
+    const result = await fetchFeed(SOCIAL_FEEDS[0]);
+    assert.equal(result.ok, false);
+    assert.equal(result.category, 'community');
+    assert.match(result.error, /403/);
+  } finally { globalThis.fetch = previous; }
+});
+await test('fetchFeed parses a Reddit JSON listing end-to-end', async () => {
+  const previous = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => ({ ok: true, status: 200, text: async () => JSON.stringify(redditFx) });
+    const result = await fetchFeed(SOCIAL_FEEDS[0]);
+    assert.equal(result.ok, true);
+    assert.equal(result.items, 4);
+    assert.ok(result.flagged.length >= 2, 'at least the two weather threads flag');
+    assert.ok(result.flagged.every((f) => f.link.startsWith('https://www.reddit.com/')));
+    assert.ok(result.flagged.every((f) => f.matched && (f.matched.delay.length || f.matched.weather.length)));
+  } finally { globalThis.fetch = previous; }
+});
+await test('SOCIAL_FEEDS are community-categorised, keyless, https', () => {
+  assert.ok(SOCIAL_FEEDS.length >= 1);
+  assert.ok(SOCIAL_FEEDS.every((f) => f.url.startsWith('https://')));
+  assert.ok(SOCIAL_FEEDS.every((f) => f.category === 'community'));
+  assert.ok(SOCIAL_FEEDS.some((f) => f.source === 'reddit' && /reddit\.com\/r\/baseball/.test(f.url)));
+});
+await test('run() merges RSS and social results into one snapshot', async () => {
+  const { run } = await import('./news-scan.mjs');
+  const previous = globalThis.fetch;
+  try {
+    globalThis.fetch = async (url) => {
+      const u = String(url);
+      if (u.includes('reddit')) return { ok: true, status: 200, text: async () => JSON.stringify(redditFx) };
+      return { ok: true, status: 200, text: async () => '<rss><channel><title>T</title><item><title>rained out</title><link>https://www.mlb.com/news/x</link><pubDate>Mon, 21 Sep 2026 20:00:00 GMT</pubDate></item></channel></rss>' };
+    };
+    const report = await run({ concurrency: 5 });
+    assert.equal(report.feedsScanned, report.rssFeeds + report.socialFeeds);
+    assert.ok(report.feeds.some((f) => f.category === 'community'));
+    assert.ok(report.flagged.some((f) => f.category === 'community' && f.feedUrl.includes('reddit.com')));
   } finally { globalThis.fetch = previous; }
 });
 

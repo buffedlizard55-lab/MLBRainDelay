@@ -185,6 +185,7 @@
       recordTransitions(nextCodes);
       state.games = games;
       games.forEach((g) => state.inspections.set(g.gamePk, Delays.inspectGame(g)));
+      checkSparseSchedule(requestDate, games.length); // async, one check per date
       renderClubLinks();
       render();
       await Promise.all([scanDelays(requestDate), refreshWeather(requestDate)]);
@@ -238,6 +239,50 @@
   function setLive(on) {
     const dot = $('#live-dot');
     if (dot) dot.classList.toggle('on', !!on);
+  }
+
+  /* --------------------------------------------------- sparse-schedule check */
+
+  const sparseChecks = new Map(); // dateStr -> { flag }
+
+  function shiftDateStr(dateStr, days) {
+    const d = new Date(`${dateStr}T12:00:00`);
+    d.setDate(d.getDate() + days);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  /**
+   * A date the official schedule fills sparsely (observed live 2026-09-22:
+   * 2026-09-21 → 3 games vs 15/16 on both neighbours) is flagged for review
+   * with the adjacent-day counts and a link to that date's schedule JSON.
+   * One check per date per session; a failed neighbour fetch just means "no
+   * comparison", never a false flag.
+   */
+  async function checkSparseSchedule(dateStr, count) {
+    const banner = $('#banner');
+    if (!banner) return;
+    const removeNote = () => { const n = banner.querySelector('.sparse-note'); if (n) n.remove(); };
+    if (count > 8) { removeNote(); return; }
+    let check = sparseChecks.get(dateStr);
+    if (!check) {
+      const prevDate = shiftDateStr(dateStr, -1);
+      const nextDate = shiftDateStr(dateStr, 1);
+      const [prevCount, nextCount] = await Promise.all([
+        MLB.getScheduleGameCount(prevDate),
+        MLB.getScheduleGameCount(nextDate),
+      ]);
+      check = { flag: Delays.sparseScheduleFlag(dateStr, count, prevDate, prevCount, nextDate, nextCount) };
+      sparseChecks.set(dateStr, check);
+    }
+    if (dateStr !== state.dateStr) return; // the user changed dates meanwhile
+    removeNote();
+    if (check.flag) {
+      const el = UI.el('div', 'sparse-note');
+      el.appendChild(UI.el('span', 'sparse-note-badge', '🚩 sparse schedule — flagged for review'));
+      el.appendChild(UI.el('span', 'sparse-note-text', check.flag.text));
+      el.appendChild(UI.el('a', 'source-link', 'Schedule JSON for this date', { href: MLB.scheduleUrl(dateStr), target: '_blank', rel: 'noopener' }));
+      banner.appendChild(el);
+    }
   }
 
   /* ---------------------------------------------------------- status sweep */

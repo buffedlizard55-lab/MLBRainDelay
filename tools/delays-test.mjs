@@ -353,4 +353,23 @@ test('diffStatuses reports live→delayed, delayed→resumed, scheduled→postpo
   assert.ok(t.every((x) => x.at === 1000));
 });
 
+console.log('delays.js — sparse-schedule irregularity');
+test('a sparse date vs a fuller neighbour is flagged (live 2026-09-21 case: 3 vs 15/16)', () => {
+  const f = Delays.sparseScheduleFlag('2026-09-21', 3, '2026-09-20', 15, '2026-09-22', 16);
+  assert.equal(f.code, 'sparse-schedule');
+  assert.ok(f.text.includes('2026-09-21') && f.text.includes('2026-09-20 reports 15') && f.text.includes('2026-09-22 reports 16'));
+});
+test('a full slate is never flagged', () => {
+  assert.equal(Delays.sparseScheduleFlag('2026-09-22', 16, '2026-09-21', 3, '2026-09-23', 15), null);
+});
+test('a uniformly light slate (e.g. holiday week) is not flagged — no neighbour is much larger', () => {
+  assert.equal(Delays.sparseScheduleFlag('2026-07-04', 5, '2026-07-03', 7, '2026-07-05', 6), null);
+});
+test('zero games with a full neighbour is flagged; unknown neighbours never invent a flag', () => {
+  const f = Delays.sparseScheduleFlag('2026-09-21', 0, '2026-09-20', 15, '2026-09-22', null);
+  assert.equal(f.code, 'sparse-schedule');
+  assert.equal(Delays.sparseScheduleFlag('2026-09-21', 0, '2026-09-20', null, '2026-09-22', null), null);
+  assert.equal(Delays.sparseScheduleFlag('2026-09-21', null, '2026-09-20', 15, '2026-09-22', 15), null, 'no count → no claim');
+});
+
 console.log(`\n${passed} passed${process.exitCode ? ' — FAILURES above' : ''}`);

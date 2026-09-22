@@ -120,6 +120,7 @@ function loadPage(scripts, { search = '', ids = [] } = {}) {
     URL, URLSearchParams,
     fetch: fakeFetch,
     AbortController,
+    AbortSignal,
     setTimeout: (fn, ms) => { const id = timers.length + 1; timers.push({ id, fn, ms, cleared: false }); return id; },
     clearTimeout: (id) => { const t = timers[id - 1]; if (t) t.cleared = true; },
     setInterval: () => 1, clearInterval: () => {},

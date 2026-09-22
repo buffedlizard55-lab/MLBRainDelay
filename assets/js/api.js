@@ -170,6 +170,21 @@ const MLB = (() => {
   }
 
   /**
+   * How many games the official schedule lists for a date. Used only by the
+   * sparse-schedule irregularity check (a day that reports far fewer games
+   * than its neighbours is flagged for review). Returns null when the sweep
+   * itself failed, so callers can distinguish "0 games reported" from
+   * "could not ask".
+   */
+  async function getScheduleGameCount(dateStr) {
+    try {
+      return (await getStatusSweep(dateStr)).length;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /**
    * Play-by-play projection carrying the official status-change advisories.
    *
    * Verified live (statsapi.mlb.com, 2026-09-21):
@@ -385,7 +400,7 @@ const MLB = (() => {
   }
 
   return {
-    getJSON, getSchedule, getStatusSweep, getPlayByPlay, getBoxscoreInfo,
+    getJSON, getSchedule, getStatusSweep, getScheduleGameCount, getPlayByPlay, getBoxscoreInfo,
     getLiveFeed, getLinescore,
     scheduleUrl, gameScheduleUrl, statusSweepUrl, playByPlayUrl, boxscoreInfoUrl,
     sourceLinks, rateLimitedForMs,
